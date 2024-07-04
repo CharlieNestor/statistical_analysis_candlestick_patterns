@@ -148,8 +148,7 @@ def identify_anomalies(df: pd.DataFrame, threshold1: float = 0.35, threshold2: f
     return anomalies
 
 
-def check_clean_data(stock_data: dict[str, dict[str, any]]) -> dict[str, dict[str, any]]:
-
+def check_clean_data(stock_data: dict[str, dict[str, any]], verbose: bool = False) -> dict[str, dict[str, any]]:
     """
     Check and clean the stock data and print warn for potential issues in the dataset.
     :param stock_data: dictionary with stock data
@@ -177,10 +176,12 @@ def check_clean_data(stock_data: dict[str, dict[str, any]]) -> dict[str, dict[st
             # output the results
             if same_price_dates:
                 print(f"Ticker: {ticker} has the same OHLC prices on {len(same_price_dates)} dates")
-                #print(same_price_dates)
+                if verbose:
+                    print(same_price_dates)
             if low_volume_dates:
                 print(f"Ticker: {ticker} has low volume on {len(low_volume_dates)} dates")
-                #print(low_volume_dates)
+                if verbose:
+                    print(low_volume_dates)
             if avg_excursion < 75:
                 print(f"Ticker: {ticker} has an average price excursion of less than 75%: {avg_excursion:.2f}%")
             if num_anomalies:
@@ -188,7 +189,8 @@ def check_clean_data(stock_data: dict[str, dict[str, any]]) -> dict[str, dict[st
                 for key, value in anomalies.items():
                     if value:
                         print(f"  {key}: {len(value)}")
-                        #print(value)
+                        if verbose:
+                            print(value)
 
     return stock_data
 
