@@ -1,4 +1,5 @@
 pandas==2.2.1
+numpy==1.26.4
 notebook==7.1.0
 ipykernel==6.29.3
 plotly==5.20.0
