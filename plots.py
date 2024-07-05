@@ -233,16 +233,17 @@ def plot_return_distributions(returns: dict[int, list[float]], num_cols: int = 3
         #num_bins = np.histogram_bin_edges(np.array(ret), bins='auto')
         width, bin_edges = knuth_bin_width(np.array(ret), return_bins=True)
         
-        # Calculate histogram data
+        # calculate histogram data
         hist, bin_edges = np.histogram(ret, bins=bin_edges, density=True)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         
-        # Plot histogram
-        fig.add_trace(go.Bar(x=bin_centers, y=hist, name='', showlegend=False), 
-                      row=row, col=col)
+        # plot histogram
+        fig.add_trace(go.Bar(x=bin_centers, y=hist, name='', showlegend=False,
+                             hoverinfo='x'), 
+                    row=row, col=col)
         
         
-        # Fit a normal distribution to the data
+        # fit a normal distribution to the data
         mu, std = np.mean(ret), np.std(ret)
         x = np.linspace(min(ret), max(ret), 100)
         p = stats.norm.pdf(x, mu, std)
@@ -254,24 +255,30 @@ def plot_return_distributions(returns: dict[int, list[float]], num_cols: int = 3
         p = stats.norm.pdf(x, 0, std)  # Note: mean is set to 0 here
         '''
         
-        # Plot the normal distribution
-        fig.add_trace(go.Scatter(x=x, y=p, mode='lines', name='', line=dict(color='red'), showlegend=False), 
-                      row=row, col=col)
+        # plot the normal distribution
+        fig.add_trace(go.Scatter(x=x, y=p, mode='lines', name='Gaussian Distribution',
+                                line=dict(color='red'), showlegend=False, 
+                                hoverinfo='name',
+                            ), row=row, col=col)
         
-        # Update axes labels
+        # update axes labels
         fig.update_xaxes(title_text=None, row=row, col=col)
         fig.update_yaxes(title_text=None, row=row, col=col)
+        # center the x-axis range
+        fig.update_xaxes(range=[np.percentile(ret, 2), np.percentile(ret, 99)], row=row, col=col)
 
-    fig.update_layout(height=300*num_rows, width=350*num_cols, title_text="Return Distributions by Candle")
+
+    fig.update_layout(height=300*num_rows, width=350*num_cols, 
+                    title_text=f"Return Distributions by Candle vs Gaussian Distribution. (Sample Size: {len(ret)})")
     fig.show()
 
 
 def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int, float], win_rate: dict[int, float]) -> None:
     """
     Plot the average cumulative returns, median cumulative returns, and win rate over the future periods
-    :param avg_returns: dictionary with the average cumulative returns for each period. Keys are the periods, values are the average returns
-    :param median_returns: dictionary with the median cumulative returns for each period. Keys are the periods, values are the median returns
-    :param win_rate: dictionary with the win rate for each period. Keys are the periods, values are the win rates
+    :param avg_returns: dictionary with the average cumulative returns for each period. Keys are the periods, value is the average returns
+    :param median_returns: dictionary with the median cumulative returns for each period. Keys are the periods, value is the median returns
+    :param win_rate: dictionary with the win rate for each period. Keys are the periods, value is the average win rates
     """
 
     fig = go.Figure()
@@ -317,31 +324,25 @@ def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int,
 
     # update layout for dual y-axes
     fig.update_layout(
-        title="Cumulative Returns and Win Rate Over the next Days",
+        title=f"Cumulative Returns and Win Rate Over the next Days",
         xaxis_title="Future Lag (Days)",
         yaxis1=dict(
             title="Cumulative Returns",
-            #titlefont=dict(color="blue"),
-            #tickfont=dict(color="blue"),
         ),
         yaxis2=dict(
             title="Win Rate (%)",
-            #titlefont=dict(color="red"),
-            #tickfont=dict(color="red"),
             overlaying="y",
             side="right",
             range=[min(win_rate.values()) * 0.8, max(win_rate.values()) * 1.1]
         ),
         legend=dict(
-            #x=1.05,
+            #x=1.05,    by right side
             #y=1,
             x=0.01,
             y=0.99,
-            traceorder='normal',
             bordercolor="Black",
             borderwidth=1
         ),
-        #margin=dict(l=0, r=200, t=30, b=30),
     )
 
     fig.show()
