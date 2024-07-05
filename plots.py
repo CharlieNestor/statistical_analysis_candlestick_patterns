@@ -1,6 +1,9 @@
 import random
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from scipy import stats
+from astropy.stats import knuth_bin_width
 from plotly.subplots import make_subplots
 
 
@@ -192,5 +195,153 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
                                     font=dict(size=18, color='red'),
                                     x=0.5)
         )
+
+    fig.show()
+
+def calculate_nbins(data: any) -> int:
+    """
+    Calculate the number of bins for a histogram using Freedman-Diaconis rule 
+    """
+    array = np.array(data)
+    q1 = np.percentile(array, 25)
+    q3 = np.percentile(array, 75)
+    iqr = q3 - q1
+    bin_width = (2 * iqr) / (array.shape[0] ** (1 / 3))
+    bin_count = int(np.ceil((array.max() - array.min()) / bin_width))
+    return int(bin_count)
+
+
+def plot_return_distributions(returns: dict[int, list[float]], num_cols: int = 3):
+    """
+    Plot frequency distributions of returns for each candle using Plotly
+    :param returns: Dictionary of returns. Keys are the number of candles, values are lists of returns
+    :param num_cols: Number of columns in the subplot grid
+    """
+    num_periods = len(returns)
+    num_rows = (num_periods + num_cols - 1) // num_cols
+    
+    fig = make_subplots(rows=num_rows, cols=num_cols, 
+                        subplot_titles=[f"Returns after {period} candles" for period in returns.keys()],
+                        vertical_spacing=0.1)
+    
+    for idx, (period, ret) in enumerate(returns.items()):
+        row = idx // num_cols + 1
+        col = idx % num_cols + 1
+
+        # calculate the number of bins for the histogram
+        #num_bins = calculate_nbins(ret)
+        #num_bins = np.histogram_bin_edges(np.array(ret), bins='auto')
+        width, bin_edges = knuth_bin_width(np.array(ret), return_bins=True)
+        
+        # Calculate histogram data
+        hist, bin_edges = np.histogram(ret, bins=bin_edges, density=True)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        
+        # Plot histogram
+        fig.add_trace(go.Bar(x=bin_centers, y=hist, name='', showlegend=False), 
+                      row=row, col=col)
+        
+        
+        # Fit a normal distribution to the data
+        mu, std = np.mean(ret), np.std(ret)
+        x = np.linspace(min(ret), max(ret), 100)
+        p = stats.norm.pdf(x, mu, std)
+        
+        '''
+        # Fit a normal distribution centered at 0 with the same standard deviation as the data
+        std = np.std(ret)
+        x = np.linspace(min(ret), max(ret), 100)
+        p = stats.norm.pdf(x, 0, std)  # Note: mean is set to 0 here
+        '''
+        
+        # Plot the normal distribution
+        fig.add_trace(go.Scatter(x=x, y=p, mode='lines', name='', line=dict(color='red'), showlegend=False), 
+                      row=row, col=col)
+        
+        # Update axes labels
+        fig.update_xaxes(title_text=None, row=row, col=col)
+        fig.update_yaxes(title_text=None, row=row, col=col)
+
+    fig.update_layout(height=300*num_rows, width=350*num_cols, title_text="Return Distributions by Candle")
+    fig.show()
+
+
+def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int, float], win_rate: dict[int, float]) -> None:
+    """
+    Plot the average cumulative returns, median cumulative returns, and win rate over the future periods
+    :param avg_returns: dictionary with the average cumulative returns for each period. Keys are the periods, values are the average returns
+    :param median_returns: dictionary with the median cumulative returns for each period. Keys are the periods, values are the median returns
+    :param win_rate: dictionary with the win rate for each period. Keys are the periods, values are the win rates
+    """
+
+    fig = go.Figure()
+
+    # add average cumulative returns trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(avg_returns.keys()),
+            y=list(avg_returns.values()),
+            name="Average Returns",
+            mode='lines+markers',
+            yaxis="y1",
+            hoverinfo='x+y+name',
+            line=dict(color='blue')
+        )
+    )
+
+    # add median cumulative returns trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(median_returns.keys()),
+            y=list(median_returns.values()),
+            name="Median Returns",
+            mode='lines+markers',
+            yaxis="y1",
+            hoverinfo='x+y+name',
+            line=dict(color='red')
+        )
+    )
+
+    # add win rate trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(win_rate.keys()),
+            y=list(win_rate.values()),
+            name="Win Rate",
+            mode='lines+markers',
+            yaxis="y2",
+            hoverinfo='x+y+name',
+            line=dict(color='green')
+        )
+    )
+
+    # update layout for dual y-axes
+    fig.update_layout(
+        title="Cumulative Returns and Win Rate Over the next Days",
+        xaxis_title="Future Lag (Days)",
+        yaxis1=dict(
+            title="Cumulative Returns",
+            #titlefont=dict(color="blue"),
+            #tickfont=dict(color="blue"),
+        ),
+        yaxis2=dict(
+            title="Win Rate (%)",
+            #titlefont=dict(color="red"),
+            #tickfont=dict(color="red"),
+            overlaying="y",
+            side="right",
+            range=[min(win_rate.values()) * 0.8, max(win_rate.values()) * 1.1]
+        ),
+        legend=dict(
+            #x=1.05,
+            #y=1,
+            x=0.01,
+            y=0.99,
+            traceorder='normal',
+            bordercolor="Black",
+            borderwidth=1
+        ),
+        #margin=dict(l=0, r=200, t=30, b=30),
+    )
 
     fig.show()
