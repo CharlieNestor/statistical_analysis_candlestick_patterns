@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 
@@ -138,7 +139,38 @@ def bearish_harami(df: pd.DataFrame) -> pd.Series:
     return harami_mask
 
 
-# Dictionary of patterns
+def filter_mask(mask: pd.Series, step: int) -> pd.Series:
+    """
+    Ensure True values in the mask are separated by at least 'step' Falses.
+    :param mask: A pd.Series of boolean values.
+    :param step: Minimum number of False values between True values.
+    :return: A pd.Series with adjusted True values according to the step separation.
+    """
+    # convert mask to a numpy array
+    mask_array = mask.to_numpy()
+    true_indices = np.where(mask_array)[0]
+
+    i = 0
+    while i < len(true_indices):
+        # find the window of True values
+        window_start = true_indices[i]
+        window_end = min(window_start + step + 1, len(mask_array))
+        window_indices = true_indices[(true_indices >= window_start) & (true_indices < window_end)]
+        
+        # if there are multiple True values within the step window, randomly keep only one
+        if len(window_indices) > 1:
+            chosen_index = np.random.choice(window_indices)
+            mask_array[window_indices] = False
+            mask_array[chosen_index] = True
+        
+        # move to the next window
+        i += len(window_indices)
+    
+    # convert back to pd.Series
+    return pd.Series(mask_array, index=mask.index)
+
+
+# dictionary of patterns
 patterns = {
     'Bullish Engulfing': {'function': bullish_engulfing, 'candles': 2, 'direction': 1},
     'Bearish Engulfing': {'function': bearish_engulfing, 'candles': 2, 'direction': -1},
