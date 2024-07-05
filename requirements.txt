@@ -4,3 +4,4 @@ notebook==7.1.0
 ipykernel==6.29.3
 plotly==5.20.0
 yfinance==0.2.37
+scipy==1.12.0
