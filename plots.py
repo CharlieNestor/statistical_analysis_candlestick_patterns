@@ -346,3 +346,56 @@ def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int,
     )
 
     fig.show()
+
+
+def qq_plot(true_returns: dict[int, list[float]], generated_returns: dict[int, list[float]], num_cols: int = 3):
+    """
+    Create Q-Q plots comparing true pattern distribution vs generated distribution
+    
+    :param true_returns: Dictionary of true returns. Keys are days, values are lists of returns
+    :param generated_returns: Dictionary of generated returns. Keys are days, values are lists of returns
+    :param num_cols: Number of columns in the subplot grid
+    """
+    num_days = len(true_returns)
+    num_rows = (num_days + num_cols - 1) // num_cols
+    
+    fig = make_subplots(rows=num_rows, cols=num_cols,
+                        subplot_titles=[f"Q-Q Plot for Day {day}" for day in true_returns.keys()],
+                        vertical_spacing=0.1)
+    
+    for idx, day in enumerate(true_returns.keys()):
+        row = idx // num_cols + 1
+        col = idx % num_cols + 1
+        
+        true_data = np.sort(true_returns[day])
+        generated_data = np.sort(generated_returns[day])
+        
+        # Calculate quantiles
+        n_true = len(true_data)
+        n_generated = len(generated_data)
+        
+        quantiles_true = np.arange(1, n_true + 1) / (n_true + 1)
+        quantiles_generated = np.arange(1, n_generated + 1) / (n_generated + 1)
+        
+        # Interpolate generated data to match true data quantiles
+        generated_interpolated = np.interp(quantiles_true, quantiles_generated, generated_data)
+        
+        # Add scatter plot
+        fig.add_trace(go.Scatter(x=true_data, y=generated_interpolated, mode='markers',
+                                 name='', showlegend=False),
+                      row=row, col=col)
+        
+        # Add diagonal line
+        min_val = min(min(true_data), min(generated_interpolated))
+        max_val = max(max(true_data), max(generated_interpolated))
+        fig.add_trace(go.Scatter(x=[min_val, max_val], y=[min_val, max_val], mode='lines',
+                                 name='y=x', line=dict(color='red'), showlegend=False),
+                      row=row, col=col)
+        
+        # Update axes labels
+        fig.update_xaxes(title_text="True Quantiles", row=row, col=col)
+        fig.update_yaxes(title_text="Generated Quantiles", row=row, col=col)
+    
+    fig.update_layout(height=300*num_rows, width=350*num_cols,
+                      title_text="Q-Q Plots: True vs Generated Returns")
+    fig.show()
