@@ -142,18 +142,72 @@ def bearish_harami(df: pd.DataFrame) -> pd.Series:
     )
     return harami_mask
 
+def bullish_marubozu(df: pd.DataFrame) -> pd.Series:
+    """
+    Bullish Marubozu pattern
+    """
+    # Calculate body - range - direction of each candle
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+
+    # Bullish Marubozu pattern conditions
+    bullish_marubozu = (
+        (direction == True) &                   # Current candle is bullish
+        (body/full_range > 0.9)                 # Body is at least 90% of the range
+    )
+
+    marubozu_mask = (
+        bullish_marubozu &
+        (body > df['ATR'])
+        # any further conditions or filters can be added here ...
+    )
+    return marubozu_mask
+
+def bearish_marubozu(df: pd.DataFrame) -> pd.Series:
+    """
+    Bearish Marubozu pattern
+    """
+    # Calculate body - range - direction of each candle
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+
+    # Bearish Marubozu pattern conditions
+    bearish_marubozu = (
+        (direction == False) &                  # Current candle is bearish
+        (body/full_range > 0.9)                 # Body is at least 90% of the range
+    )
+
+    marubozu_mask = (
+        bearish_marubozu &
+        (body > df['ATR'])
+        # any further conditions or filters can be added here ...
+    )
+    return marubozu_mask
+
+
+# ARTIFICIAL MASKS
 
 def random_mask(df: pd.DataFrame, dim_sample: int = None, lag: int = 10) -> pd.Series:
     """
     Generate a random mask with dim_sample valid (True) size that are at least 'lag' days apart.
     """
     if dim_sample==None:
-        dim_sample = 0.85*(len(df)/lag)     # if the user does not specify the sample size, it will be 85% of maximum possible sample size
+        dim_sample = 0.8*(len(df)/lag)     # if the user does not specify the sample size, it will be 85% of maximum possible sample size
     n = len(df)
     all_indices = list(range(1,n))      # avoid index 0 for Nan values
     valid_samples = []
+    attempt_count = 0  # Track the number of attempts to find valid samples
     
-    while len(valid_samples) < dim_sample:
+    while len(valid_samples) < dim_sample + 1:
+        attempt_count += 1
+        if attempt_count > 10000:  # If too many attempts are made, reduce lag
+            lag = max(3, lag - 1)
+            attempt_count = 0   # Reset the attempt counter
+            valid_samples = []  # Reset the valid samples list
+            print(f"Reducing lag to {lag} to find valid samples.")
+
         sample = random.choice(all_indices)
         if all(abs(sample - s) >= lag for s in valid_samples):  # check if the new sample is at least 'lag' days apart from any other sample
             valid_samples.append(sample)
@@ -200,4 +254,6 @@ patterns = {
     'Bearish Engulfing': {'function': bearish_engulfing, 'candles': 2, 'direction': -1},
     'Bullish Harami': {'function': bullish_harami, 'candles': 2, 'direction': 1},
     'Bearish Harami': {'function': bearish_harami, 'candles': 2, 'direction': -1},
+    'Bullish Marubozu': {'function': bullish_marubozu, 'candles': 1, 'direction': 1},
+    'Bearish Marubozu': {'function': bearish_marubozu, 'candles': 1, 'direction': -1},
 }
