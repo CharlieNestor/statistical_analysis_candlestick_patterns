@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import pandas as pd
 
@@ -140,6 +141,26 @@ def bearish_harami(df: pd.DataFrame) -> pd.Series:
         # like previous candle has a large body
     )
     return harami_mask
+
+
+def random_mask(df: pd.DataFrame, dim_sample: int = None, lag: int = 10) -> pd.Series:
+    """
+    Generate a random mask with dim_sample valid (True) size that are at least 'lag' days apart.
+    """
+    if dim_sample==None:
+        dim_sample = 0.85*(len(df)/lag)     # if the user does not specify the sample size, it will be 85% of maximum possible sample size
+    n = len(df)
+    all_indices = list(range(1,n))      # avoid index 0 for Nan values
+    valid_samples = []
+    
+    while len(valid_samples) < dim_sample:
+        sample = random.choice(all_indices)
+        if all(abs(sample - s) >= lag for s in valid_samples):  # check if the new sample is at least 'lag' days apart from any other sample
+            valid_samples.append(sample)
+    
+    neutral_mask = pd.Series([False] * n)
+    neutral_mask.iloc[valid_samples] = True
+    return neutral_mask
 
 
 def filter_mask(mask: pd.Series, step: int) -> pd.Series:
