@@ -29,7 +29,8 @@ def bullish_engulfing(df: pd.DataFrame) -> pd.Series:
 
     engulfing_mask = (
         bullish_engulfing &
-        (body > 2 * prev_body)
+        (body > 2 * prev_body) &
+        (full_range >= df['ATR'])
         # any further conditions or filters can be added here ...
         # ATR ...
     )
@@ -85,6 +86,7 @@ def bullish_harami(df: pd.DataFrame) -> pd.Series:
     prev_high = df['High'].shift(1)
     prev_low = df['Low'].shift(1)
     prev_body = body.shift(1)
+    prev_range = full_range.shift(1)
     prev_direction = direction.shift(1)
 
     # bullish harami pattern conditions
@@ -98,7 +100,8 @@ def bullish_harami(df: pd.DataFrame) -> pd.Series:
     )
 
     harami_mask = (
-        bullish_harami
+        bullish_harami & 
+        (prev_range >= df['ATR'])
         # any further conditions or filters can be added here ...
         # like previous candle has a large body
     )
