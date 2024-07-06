@@ -155,7 +155,7 @@ def kde_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, lis
         kde_returns[day] = kde_samples.flatten().tolist()
     return kde_returns
 
-
+'''
 def bayesian_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, list[float]]:
     """
     Generate additional samples using a Bayesian model with a mixture of Gaussians as prior.
@@ -207,3 +207,63 @@ def bayesian_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int
         bayesian_returns[day] = np.random.choice(flattened_returns, size=n_samples, replace=False).tolist()
     
     return bayesian_returns
+'''
+
+def bayesian_sample(returns: dict[int, list[float]], n_samples: int, data_weight: int = 2) -> dict[int, list[float]]:
+    bayesian_returns = {}
+    for day, values in returns.items():
+        print(f"Processing day {day}")
+
+        # Original data plus bootstrapped samples
+        original_data = np.array(values)
+        bootstrapped_data = np.concatenate([original_data] + 
+                                           [np.random.choice(original_data, size=(original_data.shape[0],), replace=True)
+                                            for _ in range(data_weight - 1)])
+
+        
+        with pm.Model() as model:
+            # Hyperpriors
+            nu = pm.Gamma('nu', alpha=2, beta=0.1)  # Degrees of freedom
+            sigma = pm.HalfCauchy('sigma', beta=1)  # Scale
+            mu = pm.Normal('mu', mu=np.median(values), sigma=1)  # Location
+            
+            # Likelihood
+            pm.StudentT('likelihood', nu=nu, mu=mu, sigma=sigma, observed=bootstrapped_data)
+            
+            # Sample from the posterior
+            idata = pm.sample(draws=1000, tune=1500, chains=4, target_accept=0.9, return_inferencedata=True)
+            
+            # Generate posterior predictive samples
+            pm.sample_posterior_predictive(idata, extend_inferencedata=True)
+        
+        # Extract posterior predictive samples
+        post_pred = np.array(az.extract(idata, group="posterior_predictive")["likelihood"]).flatten()
+        
+        # Randomly select n_samples from the posterior predictive
+        bayesian_returns[day] = np.random.choice(post_pred, size=n_samples, replace=False).tolist()
+    
+    return bayesian_returns
+
+def mixed_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, list[float]]:
+    """
+    Generate samples using a mix of bootstrap, KDE, and Bayesian methods.
+    
+    :param returns: Dictionary of original returns
+    :param n_samples: Total number of samples to generate per day
+    :return: Dictionary of samples from the mixed methods
+    """
+    n_bootstrap = int(0.4 * n_samples)
+    n_kde = int(0.3 * n_samples)
+    n_bayesian = n_samples - (n_bootstrap + n_kde)  # Ensure the total sums up to n_samples
+
+    bootstrap_returns = bootstrap_sample(returns, n_bootstrap)
+    kde_returns = kde_sample(returns, n_kde)
+    bayesian_returns = bayesian_sample(returns, n_bayesian)
+
+    mixed_returns = {}
+    for day in returns.keys():
+        mixed_returns[day] = (
+            bootstrap_returns[day] + kde_returns[day] + bayesian_returns[day]
+        )
+    
+    return mixed_returns
