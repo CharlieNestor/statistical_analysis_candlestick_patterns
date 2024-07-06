@@ -3,8 +3,10 @@ import pymc as pm
 import arviz as az
 import numpy as np
 import pandas as pd
+import patterns as pt
 from scipy import stats
 from sklearn.mixture import GaussianMixture
+from typing import List, Dict
 
 
 def add_pct_log_returns(df: pd.DataFrame) -> pd.DataFrame:
@@ -244,6 +246,7 @@ def bayesian_sample(returns: dict[int, list[float]], n_samples: int, data_weight
     
     return bayesian_returns
 
+
 def mixed_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, list[float]]:
     """
     Generate samples using a mix of bootstrap, KDE, and Bayesian methods.
@@ -267,3 +270,99 @@ def mixed_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, l
         )
     
     return mixed_returns
+
+
+def generate_multiple_mask(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
+    """
+    Generate multiple random masks for a DataFrame.
+    :param df: DataFrame to generate masks for
+    :param dim_sample: Number of samples to generate
+    :param n_iterations: Number of masks to generate
+    :param lag: Minimum separation between samples
+    :return: List of random masks
+    """
+    return [pt.random_mask(df = df, dim_sample = dim_sample, lag = 10) for _ in range(n_iterations)]
+
+
+def generate_random_returns(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, ) -> list[dict[int, np.ndarray[float]]]:
+    """
+    Generate random returns from random masks
+    :param df: DataFrame to generate returns for
+    :param n_iterations: Number of random samples to generate
+    :param dim_sample: Dimension of each random sample
+    :return: List of random returns. The returns are dictionaries with keys as periods and values as numpy arrays of returns
+    """
+    random_masks = generate_multiple_mask(df, dim_sample=dim_sample, n_iterations=n_iterations)
+    original_returns = []
+    counter = 0
+    print('Starting calculating returns...')
+    for mask in random_masks:
+        returns = calculate_cumReturns_periods(df, mask)
+        returns = {k: np.array([round(100*r,3) for r in v]) for k, v in returns.items()}      # round to 3 decimal places
+        original_returns.append(returns)
+        counter += 1
+        print(f'Generated {counter} samples.')
+
+    return original_returns
+
+
+def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[int, np.ndarray]]:
+    """
+    Calculate win rate, average return, and median return for each day across all samples.
+    
+    :param samples: List of dictionaries, where each dictionary represents a sample
+                    with keys as days (1-10) and values as numpy arrays of returns.
+    :return: Dictionary with metrics as keys and nested dictionaries as values.
+             The nested dictionaries have days as keys and numpy arrays of metric values as values.
+    """
+    n_days = len(samples[0])
+    n_samples = len(samples)
+    
+    # Initialize the results dictionary
+    results = {
+        'win_rate': {},
+        'average_return': {},
+        'median_return': {},
+        'std_return': {},
+        'kurtosis_return': {}
+    }
+    
+    for day in range(1, n_days + 1):
+        win_rates = []
+        avg_returns = []
+        median_returns = []
+        std_returns = []
+        kurtosis_returns = []
+        
+        for sample in samples:
+            day_returns = sample[day]
+            
+            # Calculate win rate
+            win_rate = (day_returns > 0).sum() / len(day_returns) * 100
+            win_rates.append(win_rate)
+            
+            # Calculate average return
+            avg_return = np.mean(day_returns)
+            avg_returns.append(avg_return)
+            
+            # Calculate median return
+            median_return = np.median(day_returns)
+            median_returns.append(median_return)
+
+            # Calculate the standard deviation of returns
+            std_return = np.std(day_returns)
+            std_returns.append(std_return)
+
+            # Calculate the kurtosis of returns
+            kurtosis_return = stats.kurtosis(day_returns)
+            kurtosis_returns.append(kurtosis_return)
+
+        
+        # Store the results for this day
+        results['win_rate'][day] = np.array(win_rates)
+        results['average_return'][day] = np.array(avg_returns)
+        results['median_return'][day] = np.array(median_returns)
+        results['std_return'][day] = np.array(std_returns)
+        results['kurtosis_return'][day] = np.array(kurtosis_returns)
+    
+    return results
