@@ -399,3 +399,59 @@ def qq_plot(true_returns: dict[int, list[float]], generated_returns: dict[int, l
     fig.update_layout(height=300*num_rows, width=350*num_cols,
                       title_text="Q-Q Plots: True vs Generated Returns")
     fig.show()
+
+
+def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str, num_cols: int = 3):
+    """
+    Plot frequency distributions of a specific metric for each day using Plotly
+    
+    :param metrics: Dictionary of metrics. Keys are metric names, values are dictionaries with days as keys and numpy arrays of values as values
+    :param metric_name: Name of the metric to plot
+    :param num_cols: Number of columns in the subplot grid
+    """
+    if isinstance(metric_name, str):
+        metric_name = metric_name.lower()
+    else:
+        raise ValueError("metric_name should be a string.")
+    metric_data = metrics[metric_name]
+    num_days = len(metric_data)
+    num_rows = (num_days + num_cols - 1) // num_cols
+    
+    fig = make_subplots(rows=num_rows, cols=num_cols,
+                        subplot_titles=[f"{metric_name} after {day} days" for day in metric_data.keys()],
+                        vertical_spacing=0.1)
+    
+    for idx, (day, values) in enumerate(metric_data.items()):
+        row = idx // num_cols + 1
+        col = idx % num_cols + 1
+        
+        # Calculate histogram data
+        hist, bin_edges = np.histogram(values, bins='auto', density=True)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        
+        # Plot histogram
+        fig.add_trace(go.Bar(x=bin_centers, y=hist, name='', showlegend=False,
+                             hoverinfo='x'),
+                      row=row, col=col)
+        
+        # Fit a normal distribution to the data
+        mu, std = np.mean(values), np.std(values)
+        x = np.linspace(min(values), max(values), 100)
+        p = stats.norm.pdf(x, mu, std)
+        
+        # Plot the normal distribution
+        fig.add_trace(go.Scatter(x=x, y=p, mode='lines', name='Normal Distribution',
+                                 line=dict(color='red'), showlegend=False,
+                                 hoverinfo='name'),
+                      row=row, col=col)
+        
+        # Update axes labels
+        fig.update_xaxes(title_text=None, row=row, col=col)
+        fig.update_yaxes(title_text=None, row=row, col=col)
+        
+        # Center the x-axis range
+        fig.update_xaxes(range=[np.percentile(values, 2), np.percentile(values, 98)], row=row, col=col)
+    
+    fig.update_layout(height=300*num_rows, width=350*num_cols,
+                      title_text=f"{metric_name} Distributions by Day vs Normal Distribution. (Sample Size: {len(values)})")
+    fig.show()
