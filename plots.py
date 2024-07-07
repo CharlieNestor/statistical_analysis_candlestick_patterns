@@ -453,5 +453,54 @@ def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_
         fig.update_xaxes(range=[np.percentile(values, 2), np.percentile(values, 98)], row=row, col=col)
     
     fig.update_layout(height=300*num_rows, width=350*num_cols,
-                      title_text=f"{metric_name} Distributions by Day vs Normal Distribution. (Sample Size: {len(values)})")
+                      title_text=f"{metric_name} Distributions by Day vs Normal Distribution. (Sample size: {len(values)})")
+    
+    fig.show()
+
+
+def compare_boxplots(baseline_results: dict, pattern_results: dict, metric: str, num_cols: int = 3):
+    """
+    Create boxplots comparing baseline and pattern distributions for a specific metric.
+    
+    :param baseline_results: Dictionary of baseline results. Keys are metrics, values are dictionaries with days as keys and lists of values as values.
+    :param pattern_results: Dictionary of pattern results. Same structure as baseline_results.
+    :param metric: String specifying which metric to compare (e.g., 'average_return')
+    :param num_cols: Number of columns in the subplot grid
+    """
+    num_days = len(baseline_results[metric])
+    num_rows = (num_days + num_cols - 1) // num_cols
+    
+    fig = make_subplots(rows=num_rows, cols=num_cols,
+                        subplot_titles=[f"{metric.capitalize()} - Day {day}" for day in baseline_results[metric].keys()],
+                        vertical_spacing=0.1)
+    
+    for idx, day in enumerate(baseline_results[metric].keys()):
+        row = idx // num_cols + 1
+        col = idx % num_cols + 1
+        
+        baseline_data = baseline_results[metric][day]
+        pattern_data = pattern_results[metric][day]
+        
+        # Add boxplot for baseline
+        fig.add_trace(go.Box(y=baseline_data, name='Baseline', boxmean=True, 
+                             marker_color='blue', showlegend=False,
+                             hovertemplate='y: %{y:.2f}<extra></extra>',
+                             width=0.4),
+                      row=row, col=col)
+        
+        # Add boxplot for pattern
+        fig.add_trace(go.Box(y=pattern_data, name='Pattern', boxmean=True, 
+                             marker_color='red', showlegend=False,
+                             hovertemplate='y: %{y:.2f}<extra></extra>',
+                             width=0.4),
+                      row=row, col=col)
+        
+        # Update axes labels
+        fig.update_yaxes(title_text=metric.capitalize() if col == 1 else None, row=row, col=col)
+        fig.update_xaxes(title_text= None, row=row, col=col)
+    
+    fig.update_layout(height=300*num_rows, width=350*num_cols,
+                      title_text=f"Boxplots: Baseline vs Pattern {metric.capitalize()}",
+                      boxmode='group')
+    
     fig.show()
