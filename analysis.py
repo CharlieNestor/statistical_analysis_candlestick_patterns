@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import patterns as pt
 from scipy import stats
-from sklearn.mixture import GaussianMixture
 from typing import List, Dict
 
 
@@ -126,26 +125,26 @@ def calculate_median_return(returns: dict[int, list[float]]) -> dict[int, float]
 
 # RESAMPLING functions:
 
-def bootstrap_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, list[float]]:
+def bootstrap_sample(returns: dict[int, list[float]], dim_sample: int) -> dict[int, list[float]]:
     """
     Generate additional samples using bootstrap method.
     :param returns: Dictionary of original returns
-    :param n_samples: Number of samples to generate
+    :param dim_sample: Number of samples to generate
     :return: Dictionary of bootstrapped samples
     """
     bootstrapped_returns = {}
     for day, values in returns.items():
-        bootstrapped_values = np.random.choice(values, size=(n_samples,), replace=True)
+        bootstrapped_values = np.random.choice(values, size=(dim_sample,), replace=True)
         bootstrapped_returns[day] = bootstrapped_values.tolist()
     return bootstrapped_returns
 
 
-def kde_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, list[float]]:
+def kde_sample(returns: dict[int, list[float]], dim_sample: int) -> dict[int, list[float]]:
     """
     Generate additional samples using Kernel Density Estimation suitable for leptokurtic distributions.
     
     :param returns: Dictionary of original returns
-    :param n_samples: Number of samples to generate
+    :param dim_sample: Number of samples to generate
     :return: Dictionary of KDE samples
     """
     kde_returns = {}
@@ -153,7 +152,7 @@ def kde_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, lis
         # Use a Student's t-kernel which is better suited for heavy-tailed distributions
         kde = stats.gaussian_kde(values, bw_method='scott')
         kde.set_bandwidth(kde.factor / 2.)  # Reduce bandwidth to capture more detail
-        kde_samples = kde.resample(n_samples)
+        kde_samples = kde.resample(dim_sample)
         kde_returns[day] = kde_samples.flatten().tolist()
     return kde_returns
 
@@ -211,8 +210,19 @@ def bayesian_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int
     return bayesian_returns
 '''
 
-def bayesian_sample(returns: dict[int, list[float]], n_samples: int, data_weight: int = 2) -> dict[int, list[float]]:
+def bayesian_sample(returns: dict[int, list[float]], dim_sample: int, pool_size: int = None, data_weight: int = 3) -> dict[int, list[float]]:
+    """
+    Generate additional samples using Bayesian inference starting from a Student's t-distribution as prior.
+    We overweight the original data by a factor of data_weight to give it more importance.
+    If pool_size is provided, we generate a pool of samples for future use instead of returning a single sample.
+    :param returns: Dictionary of original returns. Keys are days and values are lists of returns.
+    :param dim_sample: Number of samples to generate from the posterior predictive distribution
+    :param pool_size: Number of samples to generate and store for future use. Possible values should be around 100_000 / 150_000
+    :param data_weight: Factor to overweight the original data
+    :return: Dictionary of samples from the posterior distribution
+    """
     bayesian_returns = {}
+    bayesian_pool = {}
     for day, values in returns.items():
         print(f"Processing day {day}")
 
@@ -240,28 +250,67 @@ def bayesian_sample(returns: dict[int, list[float]], n_samples: int, data_weight
         
         # Extract posterior predictive samples
         post_pred = np.array(az.extract(idata, group="posterior_predictive")["likelihood"]).flatten()
-        
-        # Randomly select n_samples from the posterior predictive
-        bayesian_returns[day] = np.random.choice(post_pred, size=n_samples, replace=False).tolist()
+
+        if pool_size:
+            # Create a pool of samples
+            bayesian_pool[day] = np.random.choice(post_pred, size=pool_size, replace=False).tolist()
+        else:
+            # Randomly select dim_sample from the posterior predictive
+            bayesian_returns[day] = np.random.choice(post_pred, size=dim_sample, replace=False).tolist()
     
-    return bayesian_returns
+    if pool_size:
+        return bayesian_pool
+    else:
+        return bayesian_returns
+    
+
+def generate_bayesian_pool(returns: dict[int, list[float]], pool_size: int = 150_000, data_weight: int = 2) -> dict[int, list[float]]:
+    """
+    Generate a pool of Bayesian samples for future use.
+    Replicate the Bayesian sampling process multiple times and store the samples in a pool.
+    :param returns: Dictionary of original returns. Keys are days and values are lists of returns.
+    :param pool_size: Number of samples to generate and store for future use
+    :param data_weight: Factor to overweight the original data
+    :return: Dictionary of samples from the posterior distribution. keys are days and values are lists of returns
+    """
+    bayesian_pool = {}
+    for _ in range(5):
+        bayesian_returns = bayesian_sample(returns, dim_sample=None, pool_size=pool_size, data_weight=data_weight)
+        for day in returns.keys():
+            # First sample generated
+            if day not in bayesian_pool:
+                bayesian_pool[day] = bayesian_returns[day]
+            # Append the new samples to the pool
+            else:
+                bayesian_pool[day].extend(bayesian_returns[day])
+    
+    return bayesian_pool
 
 
-def mixed_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, list[float]]:
+def mixed_sample(returns: dict[int, list[float]], dim_sample: int, bayesian_pool: dict[int, list[float]] = None) -> dict[int, list[float]]:
     """
     Generate samples using a mix of bootstrap, KDE, and Bayesian methods.
+    In case a pool of Bayesian samples is provided, sample from it instead of generating new samples.
     
     :param returns: Dictionary of original returns
-    :param n_samples: Total number of samples to generate per day
+    :param dim_sample: Total number of samples to generate per day
     :return: Dictionary of samples from the mixed methods
     """
-    n_bootstrap = int(0.4 * n_samples)
-    n_kde = int(0.3 * n_samples)
-    n_bayesian = n_samples - (n_bootstrap + n_kde)  # Ensure the total sums up to n_samples
+    n_bootstrap = int(0.4 * dim_sample)      # 40% of the samples
+    n_kde = int(0.3 * dim_sample)            # 30% of the samples
+    n_bayesian = dim_sample - (n_bootstrap + n_kde)  # Ensure the total sums up to dim_sample
 
     bootstrap_returns = bootstrap_sample(returns, n_bootstrap)
     kde_returns = kde_sample(returns, n_kde)
-    bayesian_returns = bayesian_sample(returns, n_bayesian)
+    if bayesian_pool:
+        # if a pool of samples is provided, sample from it
+        bayesian_returns = {}
+        for day in returns.keys():
+            # Sample without replacement from the Bayesian pool
+            bayesian_returns[day] = np.random.choice(bayesian_pool[day], size=n_bayesian, replace=False)
+    else:
+        # otherwise, generate new samples
+        bayesian_returns = bayesian_sample(returns, n_bayesian)
 
     mixed_returns = {}
     for day in returns.keys():
@@ -270,6 +319,36 @@ def mixed_sample(returns: dict[int, list[float]], n_samples: int) -> dict[int, l
         )
     
     return mixed_returns
+
+def generate_pattern_returns(returns: dict[int, list[float]], dim_sample: int, n_iterations: int, bayesian_pool: dict[int, np.ndarray]) -> list[dict[int, np.ndarray[float]]]:
+
+    n_bootstrap = int(0.4 * dim_sample)  # 40% of the samples
+    n_kde = int(0.3 * dim_sample)  # 30% of the samples
+    n_bayesian = dim_sample - (n_bootstrap + n_kde)  # Ensure the total sums up to n_samples
+    
+    all_mixed_samples = []
+    # Generate n_iterations mixed samples
+    for i in range(n_iterations):
+
+        bootstrap_returns = bootstrap_sample(returns, n_bootstrap)
+        kde_returns = kde_sample(returns, n_kde)
+        
+        mixed_returns = {}
+        for day in returns.keys():
+            # Sample from the Bayesian pool
+            bayesian_samples = np.random.choice(bayesian_pool[day], size=n_bayesian, replace=False)
+            
+            # Combine the samples
+            mixed_returns[day] = np.array(
+                bootstrap_returns[day] + 
+                kde_returns[day] + 
+                bayesian_samples.tolist()
+            )
+        
+        all_mixed_samples.append(mixed_returns)
+        print(f'Generated {i+1} samples.')
+
+    return all_mixed_samples
 
 
 def generate_multiple_mask(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
@@ -295,7 +374,7 @@ def generate_random_returns(df: pd.DataFrame, dim_sample: int, n_iterations: int
     random_masks = generate_multiple_mask(df, dim_sample=dim_sample, n_iterations=n_iterations)
     original_returns = []
     counter = 0
-    print('Starting calculating returns...')
+    print('Starting generating samples...')
     for mask in random_masks:
         returns = calculate_cumReturns_periods(df, mask)
         returns = {k: np.array([round(100*r,3) for r in v]) for k, v in returns.items()}      # round to 3 decimal places
@@ -366,3 +445,43 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
         results['kurtosis_return'][day] = np.array(kurtosis_returns)
     
     return results
+
+
+def compare_distributions(baseline_results: dict, pattern_results: dict, metric: str):
+    """
+    Perform statistical tests comparing baseline and pattern distributions for a specific metric.
+    
+    :param baseline_results: Dictionary of baseline results. Keys are metrics, values are dictionaries with days as keys and lists of values as values.
+    :param pattern_results: Dictionary of pattern results. Same structure as baseline_results.
+    :param metric: String specifying which metric to compare (e.g., 'average_return')
+    """
+    print(f"Statistical tests for {metric}:")
+    print("=" * 50)
+
+    for day in baseline_results[metric].keys():
+        baseline_data = np.array(baseline_results[metric][day])
+        pattern_data = np.array(pattern_results[metric][day])
+
+        # Calculate differences in mean and median
+        mean_diff = np.mean(pattern_data) - np.mean(baseline_data)
+        median_diff = np.median(pattern_data) - np.median(baseline_data)
+
+        # Perform t-test for means
+        t_stat, t_pvalue = stats.ttest_ind(pattern_data, baseline_data)
+
+        # Perform Mann-Whitney U test for medians
+        u_stat, u_pvalue = stats.mannwhitneyu(pattern_data, baseline_data, alternative='two-sided')
+
+        # Perform Kolmogorov-Smirnov test for distribution shape
+        ks_stat, ks_pvalue = stats.ks_2samp(pattern_data, baseline_data)
+
+        # Perform Levene test for equality of variances
+        levene_stat, levene_pvalue = stats.levene(pattern_data, baseline_data)
+
+        print(f"\nDay {day}:")
+        print(f"  Mean difference (Pattern - Baseline): {mean_diff:.4f}")
+        print(f"  Median difference (Pattern - Baseline): {median_diff:.4f}")
+        print(f"  T-test (means): p-value = {t_pvalue:.4f}")
+        print(f"  Mann-Whitney U test (medians): p-value = {u_pvalue:.4f}")
+        print(f"  Kolmogorov-Smirnov test (distribution shape): p-value = {ks_pvalue:.4f}")
+        print(f"  Levene test (equality of variances): p-value = {levene_pvalue:.4f}")
