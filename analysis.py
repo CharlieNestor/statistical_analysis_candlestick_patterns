@@ -4,8 +4,14 @@ import arviz as az
 import numpy as np
 import pandas as pd
 import patterns as pt
+import statsmodels.api as sm
+import statsmodels.stats.api as sms
 from scipy import stats
-from typing import List, Dict
+from statsmodels.tsa.stattools import adfuller, acf, pacf
+from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
+from statsmodels.stats.stattools import durbin_watson
+from typing import List, Dict, Tuple
+
 
 
 def add_pct_log_returns(df: pd.DataFrame) -> pd.DataFrame:
@@ -17,6 +23,15 @@ def add_pct_log_returns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # TECHNICAL INDICATORS functions
+
+def add_log_returns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate the log returns for a given DataFrame
+    """
+    df['Returns'] = df['Close'].pct_change()
+    df['Log_Returns'] = np.log(1 + df['Returns'])
+
+    return df
 
 def calculate_ATR(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     """
@@ -44,13 +59,114 @@ def calculate_ATR(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     # calculate subsequent ATR values using the formula:
     # ATR(i) = (ATR(i-1) * (period - 1) + TR(i)) / period
     for i in range(period+1, len(new_df)):
-        new_df.iloc[i].at['ATR'] = (new_df.iloc[i-1].at['ATR'] * (period - 1) + new_df.iloc[i].at['TR']) / period
-        #new_df.at[i, 'ATR'] = (new_df.at[i-1, 'ATR'] * (period - 1) + new_df.at[i, 'TR']) / period
+        #new_df.iloc[i].at['ATR'] = (new_df.iloc[i-1].at['ATR'] * (period - 1) + new_df.iloc[i].at['TR']) / period
+        new_df.loc[new_df.index[i], 'ATR'] = (new_df.iloc[i-1]['ATR'] * (period - 1) + new_df.iloc[i]['TR']) / period
 
     # Drop the intermediate 'Prev_Close' column
     df.drop(columns=['Prev_Close'], inplace=True)
 
     return new_df
+
+
+# STATISTICAL TESTS
+
+def adf_test(series: pd.Series) -> None:
+    """
+    Perform the Augmented Dickey-Fuller test on a time series.
+    : param series: The time series to test
+    : return: Three values containing the ADF statistic and p-value and the number of lags used in the test
+    """
+    result = adfuller(series.dropna(), maxlag=15)
+    # Extract and display the test statistics
+    adf_statistic = result[0]
+    p_value = result[1]
+    used_lag = result[2]
+    
+    print('Augmented Dickey-Fuller Test:')
+    print(f"Statistic: {adf_statistic}")
+    print(f"p-value: {p_value}")
+    print(f"Used Lag: {used_lag}")
+
+def ljung_box_test(series: pd.Series, lags: int = 10):
+    result = acorr_ljungbox(series.dropna(), lags=lags)
+    print('Ljung-Box Test:')
+    print('Statistic:', result.lb_stat)
+    print('p-value:', result.lb_pvalue)
+
+def durbin_watson_test(series: pd.Series):
+    dw_statistic = durbin_watson(series.dropna())
+    print('Durbin-Watson Statistic:', dw_statistic)
+
+def engle_arch_test(series: pd.Series, lags: int = 12):
+    result = het_arch(series.dropna(), nlags=lags)
+    print('Engle\'s ARCH Test:')
+    print('Lagrange Multiplier statistic:', result[0])
+    print('p-value:', result[1])
+
+def jarque_bera_test(series: pd.Series):
+    result = stats.jarque_bera(series.dropna())
+    print('Jarque-Bera Test:')
+    print('Statistic:', result.statistic)
+    print('p-value:', result.pvalue)
+
+
+def run_tests(series):
+    results = {}
+    
+    # ADF Test
+    adf_result = adfuller(series)
+    try:
+        results['adf_statistic'] = adf_result[0]
+        results['adf_pvalue'] = adf_result[1]
+    except Exception as e:
+        results['adf_statistic'] = None
+        results['adf_pvalue'] = None
+        print(f"ADF test failed: {e}")
+    
+    # Ljung-Box Test
+    lb_result = acorr_ljungbox(series, lags=10)
+    try:
+        lb_stats = lb_result.lb_stat
+        lb_pvalues = lb_result.lb_pvalue
+        for i in range(1,11):
+            results[f'lb_statistic_lag_{i}'] = lb_stats[i]
+            results[f'lb_pvalue_lag_{i}'] = lb_pvalues[i]
+    except Exception as e:
+        for i in range(1,11):
+            results[f'lb_statistic_lag_{i}'] = None
+            results[f'lb_pvalue_lag_{i}'] = None
+        print(f"Ljung-Box test failed: {e}")
+    
+    # Durbin-Watson Test
+    try:
+        results['dw_statistic'] = durbin_watson(series)
+    except Exception as e:
+        results['dw_statistic'] = None
+        print(f"Durbin-Watson test failed: {e}")
+    
+    # Engle's ARCH Test
+    arch_result = het_arch(series)
+    try:
+        results['arch_statistic'] = arch_result[0]
+        results['arch_pvalue'] = arch_result[1]
+    except Exception as e:
+        results['arch_statistic'] = None
+        results['arch_pvalue'] = None
+        print(f"Engle's ARCH test failed: {e}")
+    
+    # Jarque-Bera Test
+    jb_result = stats.jarque_bera(series)
+    try:
+        results['jb_statistic'] = jb_result.statistic
+        results['jb_pvalue'] = jb_result.pvalue
+    except Exception as e:
+        results['jb_statistic'] = None
+        results['jb_pvalue'] = None
+        print(f"Jarque-Bera test failed: {e}")
+    
+    return results
+
+
 
 # ANALYSIS functions relative to each periods (1 to 10 days) and metrics
 
@@ -122,6 +238,23 @@ def calculate_median_return(returns: dict[int, list[float]]) -> dict[int, float]
     #median_return = {period: sorted(ret)[len(ret) // 2] for period, ret in returns.items() if ret}     # valid only for odd number of elements
     median_return = {period: round(statistics.median(ret),3) for period, ret in returns.items() if ret}
     return median_return
+
+
+def calculate_returns_pattern(series: pd.Series, pattern_mask: pd.Series, max_length: int = 100) -> list[np.ndarray]:
+    """
+    Calculate the cumulative returns following a pattern for different future periods / candles
+    :param series: the stock price series
+    :param pattern_mask: a boolean mask with True where patterns occur
+    :param max_length: the maximum length of observation after the pattern
+    :return: a list of percentage returns for each pattern occurrence for the next 'max_length' days
+    """
+    return_series = []
+    for i in range(1, len(series) - max_length):        # start from 1 since the first row might have NaN
+        if pattern_mask.iloc[i]:                    # the pattern occurs at this date
+            return_series.append(series.iloc[i:i+max_length])
+    
+    return return_series
+
 
 # RESAMPLING functions:
 
@@ -363,9 +496,9 @@ def generate_multiple_mask(df: pd.DataFrame, dim_sample: int, n_iterations: int 
     return [pt.random_mask(df = df, dim_sample = dim_sample, lag = 10) for _ in range(n_iterations)]
 
 
-def generate_random_returns(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, ) -> list[dict[int, np.ndarray[float]]]:
+def generate_random_returns(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, verbose: bool = True) -> list[dict[int, np.ndarray[float]]]:
     """
-    Generate random returns from random masks
+    Generate random returns from random masks. Returns will be rounded to 3 decimal places.
     :param df: DataFrame to generate returns for
     :param n_iterations: Number of random samples to generate
     :param dim_sample: Dimension of each random sample
@@ -374,13 +507,15 @@ def generate_random_returns(df: pd.DataFrame, dim_sample: int, n_iterations: int
     random_masks = generate_multiple_mask(df, dim_sample=dim_sample, n_iterations=n_iterations)
     original_returns = []
     counter = 0
-    print('Starting generating samples...')
+    if verbose:
+        print('Starting generating samples...')
     for mask in random_masks:
         returns = calculate_cumReturns_periods(df, mask)
         returns = {k: np.array([round(100*r,3) for r in v]) for k, v in returns.items()}      # round to 3 decimal places
         original_returns.append(returns)
         counter += 1
-        print(f'Generated {counter} samples.')
+        if verbose:
+            print(f'Generated {counter} samples.')
 
     return original_returns
 
@@ -445,6 +580,29 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
         results['kurtosis_return'][day] = np.array(kurtosis_returns)
     
     return results
+
+
+def calculate_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], low_perc: float = 2.5, high_perc: float = 97.5) -> Dict[str, Dict[int, Tuple[float, float]]]:
+    """
+    Calculate the 95% confidence intervals for each metric based on the given distributions.
+    
+    :param metrics: Dictionary with metrics as keys and nested dictionaries as values.
+                    The nested dictionaries have days as keys and numpy arrays of metric values as values.
+    :return: Dictionary with metrics as keys and nested dictionaries as values.
+             The nested dictionaries have days as keys and tuples of confidence intervals (lower, upper) as values.
+    """
+    confidence_intervals = {}
+    
+    for metric, day_values in metrics.items():
+        confidence_intervals[metric] = {}
+        
+        for day, values in day_values.items():
+            lower = np.percentile(values, low_perc)
+            upper = np.percentile(values, high_perc)
+            confidence_intervals[metric][day] = (round(lower, 3), round(upper, 3))
+    
+    return confidence_intervals
+
 
 
 def compare_distributions(baseline_results: dict, pattern_results: dict, metric: str):
