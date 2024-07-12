@@ -65,7 +65,8 @@ def bearish_engulfing(df: pd.DataFrame) -> pd.Series:
 
     engulfing_mask = (
         bearish_engulfing &
-        (body > 2 * prev_body)
+        (body > 2 * prev_body) &
+        (full_range >= df['ATR'])
         # any further conditions or filters can be added here ...
         # ATR ...
     )
