@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from scipy import stats
 from astropy.stats import knuth_bin_width
 from plotly.subplots import make_subplots
+from statsmodels.tsa.stattools import adfuller, acf, pacf
+from typing import Dict, Tuple
 
 
 def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
@@ -34,8 +36,7 @@ def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
     
     fig.update_xaxes(showline = True, 
                     linewidth = 2, 
-                    linecolor = 'black',
-                    mirror = True,
+                    linecolor = 'black', mirror = True,
                     tickangle = -45,
                     )
 
@@ -49,7 +50,7 @@ def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
     fig.show()
 
 
-def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series) -> None:
+def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, pattern_name: str) -> None:
     """
     Plot the close price of the stock with vertical lines marking the dates where patterns occur
     :param data: the stock data
@@ -91,7 +92,7 @@ def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series) -
         )
 
     fig.update_layout(
-        title = dict(text = f'{ticker} Close Price with marked patterns',
+        title = dict(text = f'{ticker} Close Price with {pattern_name} occurrences',
                             font=dict(size=18, color='red'),
                             x=0.5,
                             ),
@@ -101,7 +102,16 @@ def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series) -
         autosize = True,
     )
 
-    fig.update_yaxes(type='log')
+    fig.update_xaxes(#showline = True, 
+                    linewidth = 1, 
+                    linecolor = 'black', mirror = True,
+                    tickangle = -45,
+                    )
+
+    fig.update_yaxes(type='log',
+                    linewidth = 1, 
+                    linecolor = 'black', mirror = True,
+                    )
 
     fig.show()
 
@@ -348,6 +358,184 @@ def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int,
     fig.show()
 
 
+def plot_compared_metrics(pattern_avg_returns: dict[int, float], pattern_median_returns: dict[int, float], pattern_win_rate: dict[int, float],
+                        base_avg_returns: dict[int, float], base_median_returns: dict[int, float], base_win_rate: dict[int, float],
+                        confidence_intervals: Dict[str, Dict[int, Tuple[float, float]]], show_interval:str = 'average_return') -> None:
+    """
+    Plot the average cumulative returns, median cumulative returns, and win rate over the future periods
+    for both pattern and base case, including confidence intervals for the base case.
+    
+    :param pattern_avg_returns: dictionary with the pattern average cumulative returns for each period. Keys are the periods, value is the average returns
+    :param pattern_median_returns: dictionary with the pattern median cumulative returns for each period. Keys are the periods, value is the median returns
+    :param pattern_win_rate: dictionary with the pattern win rate for each period. Keys are the periods, value is the average win rates
+    :param base_avg_returns: dictionary with the base average cumulative returns for each period. Keys are the periods, value is the average returns
+    :param base_median_returns: dictionary with the base median cumulative returns for each period. Keys are the periods, value is the median returns
+    :param base_win_rate: dictionary with the base win rate for each period. Keys are the periods, value is the average win rates
+    :param confidence_intervals: dictionary with confidence intervals for each metric. Keys are the metric names, values are dictionaries with keys as periods and values as tuples of confidence intervals
+    """
+
+    fig = go.Figure()
+
+    # add pattern average cumulative returns trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(pattern_avg_returns.keys()),
+            y=list(pattern_avg_returns.values()),
+            name="Pattern Average Returns",
+            mode='lines+markers',
+            yaxis="y1",
+            hoverinfo='x+y+name',
+            line=dict(color='blue')
+        )
+    )
+
+    # add base average cumulative returns trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(base_avg_returns.keys()),
+            y=list(base_avg_returns.values()),
+            name="Base Average Returns",
+            mode='lines+markers',
+            yaxis="y1",
+            hoverinfo='x+y+name',
+            line=dict(color='blue', dash='dash')
+        )
+    )
+
+    # add pattern median cumulative returns trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(pattern_median_returns.keys()),
+            y=list(pattern_median_returns.values()),
+            name="Pattern Median Returns",
+            mode='lines+markers',
+            yaxis="y1",
+            hoverinfo='x+y+name',
+            line=dict(color='red')
+        )
+    )
+
+     # add base median cumulative returns trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(base_median_returns.keys()),
+            y=list(base_median_returns.values()),
+            name="Base Median Returns",
+            mode='lines+markers',
+            yaxis="y1",
+            hoverinfo='x+y+name',
+            line=dict(color='red', dash='dash')
+        )
+    )
+
+    # add pattern win rate trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(pattern_win_rate.keys()),
+            y=list(pattern_win_rate.values()),
+            name="Pattern Win Rate",
+            mode='lines+markers',
+            yaxis="y2",
+            hoverinfo='x+y+name',
+            line=dict(color='green')
+        )
+    )
+
+    # add base win rate trace
+    fig.add_trace(
+        go.Scatter(
+            x=list(base_win_rate.keys()),
+            y=list(base_win_rate.values()),
+            name="Base Win Rate",
+            mode='lines+markers',
+            yaxis="y2",
+            hoverinfo='x+y+name',
+            line=dict(color='green', dash='dash')
+        )
+    )
+
+    if show_interval == 'average_return':
+        # Add confidence intervals for base metrics
+        for day in base_avg_returns.keys():
+            # Average Returns Confidence Interval
+            avg_ci_lower, avg_ci_upper = confidence_intervals['average_return'][day]
+            fig.add_trace(
+                go.Scatter(
+                    x=[day, day],
+                    y=[avg_ci_lower, avg_ci_upper],
+                    mode='lines+markers',
+                    line=dict(color='blue', dash='dot', width=1),
+                    marker=dict(size=4, symbol='line-ew-open', color='blue'),
+                    showlegend=False,
+                    hoverinfo='skip'
+                )
+            )
+    elif show_interval == 'median_return':
+        for day in base_median_returns.keys():
+            # Median Returns Confidence Interval
+            median_ci_lower, median_ci_upper = confidence_intervals['median_return'][day]
+            fig.add_trace(
+                go.Scatter(
+                    x=[day, day],
+                    y=[median_ci_lower, median_ci_upper],
+                    mode='lines+markers',
+                    line=dict(color='red', dash='dot', width=1),
+                    marker=dict(size=4, symbol='line-ew-open', color='red'),
+                    showlegend=False,
+                    hoverinfo='skip'
+                )
+            )
+
+    elif show_interval == 'win_rate':
+        for day in base_win_rate.keys():
+            # Win Rate Confidence Interval
+            win_rate_ci_lower, win_rate_ci_upper = confidence_intervals['win_rate'][day]
+            fig.add_trace(
+                go.Scatter(
+                    x=[day, day],
+                    y=[win_rate_ci_lower, win_rate_ci_upper],
+                    mode='lines',
+                    line=dict(color='green', dash='dot'),
+                    yaxis="y2",
+                    showlegend=False,
+                    hoverinfo='skip'
+                )
+            )
+
+    # update layout for dual y-axes
+    fig.update_layout(
+        title=f"Cumulative Returns and Win Rate Over the next Days",
+        xaxis_title="Future Lag (Days)",
+        yaxis1=dict(
+            title="Cumulative Returns",
+        ),
+        yaxis2=dict(
+            title="Win Rate (%)",
+            overlaying="y",
+            side="right",
+            range=[min(min(base_win_rate.values()), min(pattern_win_rate.values())) * 0.8, 
+                   max(max(base_win_rate.values()), max(pattern_win_rate.values())) * 1.1],
+            showgrid=False
+        ),
+        legend=dict(
+            x=0.01,
+            y=0.99,
+            bordercolor="Black",
+            borderwidth=1
+        ),
+        #autosize=True,
+        height=600,
+        width=1100,
+        xaxis=dict(showgrid=True),
+        yaxis=dict(showgrid=True),
+        #yaxis2=dict(showgrid=False)
+    )
+
+    fig.show()
+
+
+
+
 def qq_plot(true_returns: dict[int, list[float]], generated_returns: dict[int, list[float]], num_cols: int = 3):
     """
     Create Q-Q plots comparing true pattern distribution vs generated distribution
@@ -503,4 +691,92 @@ def compare_boxplots(baseline_results: dict, pattern_results: dict, metric: str,
                       title_text=f"Boxplots: Baseline vs Pattern {metric.capitalize()}",
                       boxmode='group')
     
+    fig.show()
+
+
+def calculate_plot_acf_pacf(data: pd.Series, lags: int = 10):
+    """
+    Plot ACF and PACF using Plotly with confidence intervals.
+    """
+
+    # Calculate ACF and PACF values and confidence intervals
+    acf_values, confint_acf = acf(data.dropna(), nlags=lags, alpha=0.05)
+    pacf_values, confint_pacf = pacf(data.dropna(), nlags=lags, alpha=0.05)
+
+    # Skip the first value (lag 0)
+    acf_values = acf_values[1:]
+    pacf_values = pacf_values[1:]
+    confint_acf = confint_acf[1:]
+    confint_pacf = confint_pacf[1:]
+
+    # Create subplots
+    fig = make_subplots(rows=1, cols=2, subplot_titles=('ACF of Returns', 'PACF of Returns'))
+
+    # ACF
+    acf_trace = go.Bar(x=list(range(1, lags + 1)), y=acf_values, name='', marker_color='blue', width=0.15)
+    fig.add_trace(acf_trace, row=1, col=1)
+    
+    # Add confidence intervals to ACF plot
+    confint_acf_lower = confint_acf[:, 0] - acf_values
+    confint_acf_upper = confint_acf[:, 1] - acf_values
+    fig.add_trace(go.Scatter(
+        x=list(range(1, lags + 1)),
+        y=confint_acf_upper,
+        name='',
+        mode='lines',
+        line=dict(color='red', dash='dash'),
+        fill=None,
+        showlegend=False,
+        hoverinfo='skip'
+    ), row=1, col=1)
+    fig.add_trace(go.Scatter(
+        x=list(range(1, lags + 1)),
+        y=confint_acf_lower,
+        name='',
+        mode='lines',
+        line=dict(color='red', dash='dash'),
+        fill='tonexty',
+        fillcolor='rgba(255, 0, 0, 0.2)',
+        #fillcolor='rgba(128, 128, 128, 0.2)',
+        showlegend=False,
+        hoverinfo='skip'
+    ), row=1, col=1)
+
+    # PACF
+    pacf_trace = go.Bar(x=list(range(1, lags + 1)), y=pacf_values, name='', marker_color='blue', width=0.15)
+    fig.add_trace(pacf_trace, row=1, col=2)
+    
+    # Add confidence intervals to PACF plot
+    confint_pacf_lower = confint_pacf[:, 0] - pacf_values
+    confint_pacf_upper = confint_pacf[:, 1] - pacf_values
+    fig.add_trace(go.Scatter(
+        x=list(range(1, lags + 1)),
+        y=confint_pacf_upper,
+        name='',
+        mode='lines',
+        line=dict(color='red', dash='dash'),
+        fill=None,
+        showlegend=False,
+        hoverinfo='skip'
+    ), row=1, col=2)
+    fig.add_trace(go.Scatter(
+        x=list(range(1, lags + 1)),
+        y=confint_pacf_lower,
+        name='',
+        mode='lines',
+        line=dict(color='red', dash='dash'),
+        fill='tonexty',
+        #fillcolor='rgba(128, 128, 128, 0.2)',
+        fillcolor='rgba(255, 0, 0, 0.2)',
+        showlegend=False,
+        hoverinfo='skip'
+    ), row=1, col=2)
+
+    # Update layout
+    fig.update_layout(
+        title=None,
+        showlegend=False,
+        autosize=True,
+    )
+
     fig.show()
