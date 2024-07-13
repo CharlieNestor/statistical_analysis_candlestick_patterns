@@ -248,6 +248,77 @@ def bearish_engulfing(df: pd.DataFrame) -> pd.Series:
     )
     return engulfing_mask
 
+def bullish_piercing_line(df: pd.DataFrame) -> pd.Series:
+    """
+    Bullish Piercing Line pattern: the previous candle is bearish, the current is bullish and closes above the midpoint of the previous candle.
+    Filters: the body of the previous candle should be at least 67% of the current ATR.
+    """
+    # Calculate body - range - direction of each candle
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+    midpoint = df['Open'] + (df['Close'] - df['Open'])/2
+
+    # Shifted columns for the previous candle
+    prev_open = df['Open'].shift(1)
+    prev_close = df['Close'].shift(1)
+    prev_high = df['High'].shift(1)
+    prev_body = body.shift(1)
+    prev_direction = direction.shift(1)
+    prev_midpoint = midpoint.shift(1)
+
+    # Bullish piercing line pattern conditions
+    bullish_piercing_line = (
+        (direction == True) &                   # Current candle is bullish
+        (prev_direction == False) &             # Previous candle was bearish
+        (df['Close'] < prev_open) &             # Current close is lower than previous open
+        (df['Close'] > prev_midpoint) &         # Current close is higher than the midpoint of the previous candle
+        (df['Open'] < prev_close) &             # Current open is lower than previous close
+        (df['High'] < prev_high)                # Current high is lower than previous open 
+    )
+
+    piercing_mask = (
+        bullish_piercing_line &
+        # any further conditions or filters can be added here ...
+        (prev_body > 0.4 * df['ATR'])
+    )
+    return piercing_mask
+
+def bearish_piercing_line(df: pd.DataFrame) -> pd.Series:
+    """
+    Bearish Piercing Line pattern
+    """
+    # Calculate body - range - direction of each candle
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+    midpoint = df['Open'] + (df['Close'] - df['Open'])/2
+
+    # Shifted columns for the previous candle
+    prev_open = df['Open'].shift(1)
+    prev_close = df['Close'].shift(1)
+    prev_low = df['Low'].shift(1)
+    prev_body = body.shift(1)
+    prev_direction = direction.shift(1)
+    prev_midpoint = midpoint.shift(1)
+
+    # Bearish piercing line pattern conditions
+    bearish_piercing_line = (
+        (direction == False) &                  # Current candle is bearish
+        (prev_direction == True) &              # Previous candle was bullish
+        (df['Close'] > prev_open) &             # Current close is higher than previous open
+        (df['Close'] < prev_midpoint) &         # Current close is lower than the midpoint of the previous candle
+        (df['Open'] > prev_close) &             # Current open is higher than previous close
+        (df['Low'] > prev_low)                  # Current low is higher than previous low
+    )
+
+    piercing_mask = (
+        bearish_piercing_line
+        # any further conditions or filters can be added here ...
+        (prev_body > 0.4 * df['ATR'])
+    )
+    return piercing_mask
+
 
 def bullish_harami(df: pd.DataFrame) -> pd.Series:
     """
@@ -366,7 +437,7 @@ def bearish_marubozu(df: pd.DataFrame) -> pd.Series:
 
 # ARTIFICIAL MASKS
 
-def random_mask(df: pd.DataFrame, dim_sample: int = 100, lag: int = 10) -> pd.Series:
+def random_mask(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int = 100, lag: int = 10) -> pd.Series:
     """
     Generate a random mask with dim_sample valid (True) size that are at least 'lag' days apart.
     """
@@ -377,9 +448,16 @@ def random_mask(df: pd.DataFrame, dim_sample: int = 100, lag: int = 10) -> pd.Se
         
     n = len(df)
     all_indices = list(range(1,n))      # avoid index 0 for Nan values
-    valid_samples = []
+
+    # Convert input_mask's timestamps to indices
+    true_indices = input_mask[input_mask].index
+    true_indices = df.index.get_indexer(true_indices)
+
+    # Exclude indices from true_indices
+    available_indices = [idx for idx in all_indices if idx not in true_indices]
+
     # sample without caring whether they are at least 'lag' days apart (could sample adjacent days)
-    valid_samples = random.sample(all_indices, dim_sample)
+    valid_samples = random.sample(available_indices, dim_sample)
 
     """
     attempt_count = 0  # Track the number of attempts to find valid samples
@@ -441,6 +519,8 @@ patterns = {
     'Three Black Crows': {'function': three_black_crows, 'candles': 3, 'direction': -1},
     'Bullish Engulfing': {'function': bullish_engulfing, 'candles': 2, 'direction': 1},
     'Bearish Engulfing': {'function': bearish_engulfing, 'candles': 2, 'direction': -1},
+    'Bullish Piercing Line': {'function': bullish_piercing_line, 'candles': 2, 'direction': 1},
+    'Bearish Piercing Line': {'function': bearish_piercing_line, 'candles': 2, 'direction': -1},
     'Bullish Harami': {'function': bullish_harami, 'candles': 2, 'direction': 1},
     'Bearish Harami': {'function': bearish_harami, 'candles': 2, 'direction': -1},
     'Bullish Marubozu': {'function': bullish_marubozu, 'candles': 1, 'direction': 1},
