@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from scipy import stats
 from astropy.stats import knuth_bin_width
 from plotly.subplots import make_subplots
-from statsmodels.tsa.stattools import adfuller, acf, pacf
+from statsmodels.tsa.stattools import acf, pacf
 from typing import Dict, Tuple
 
 
@@ -121,14 +121,20 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
     create a subplot candlestick chart for each pattern detected up to max_subplots, randomly selected
     :param data: the stock data
     :param mask: a boolean mask with True where patterns occur
-    :param candle_pattern: the number of candles in the pattern
+    :param num_candles: the number of candles in the pattern
     :param ticker: the stock ticker
+    :param pattern_name: the name of the pattern
+    :param max_candles: the maximum number of candles to show in each subplot
+    :param back_candles: the number of candles to show before the pattern
     """
     # find the dates where patterns occur
     pattern_dates = data.index[mask]
     
     # select random dates from the pattern_dates up to k instances
-    section_dates = random.sample(list(pattern_dates), k=max_subplots)
+    if len(pattern_dates) <= max_subplots:
+        section_dates = pattern_dates
+    else:
+        section_dates = random.sample(list(pattern_dates), k=max_subplots)
     section_dates = sorted(section_dates)
     
     # determine the number of rows and columns for the subplots
@@ -137,8 +143,11 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
     n_rows = (n_plots + n_cols - 1) // n_cols
     
     # create subplot figure
+    subplot_titles = [date.strftime('%B %d, %Y') for date in section_dates]
     fig = make_subplots(rows=n_rows, cols=n_cols, 
-                        vertical_spacing=0.1, horizontal_spacing=0.05)
+                        vertical_spacing=0.1, horizontal_spacing=0.05,
+                        subplot_titles=subplot_titles,
+                        )
     
     for i, date in enumerate(section_dates):
         row = i // n_cols + 1
@@ -192,7 +201,14 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
         # Update axes in each subplot
         fig.update_xaxes(title_text=None, showgrid=True, 
                         row=row, col=col, rangeslider_visible=False)
-        fig.update_yaxes(title_text=None, showgrid=True, row=row, col=col)
+        if col == 1:
+            fig.update_yaxes(title_text='Prices', showgrid=True, row=row, col=col)
+        else:
+            fig.update_yaxes(title_text=None, showgrid=True, row=row, col=col)
+
+    # Customize the layout of titles of the subplots
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(size=16)
 
     fig.update_layout(
         #autosize = True,
