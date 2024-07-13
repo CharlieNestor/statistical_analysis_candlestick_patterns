@@ -170,7 +170,7 @@ def run_tests(series):
 
 # ANALYSIS functions relative to each periods (1 to 10 days) and metrics
 
-def calculate_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, periods=range(1, 11)) -> dict[int, list[float]]:
+def calculate_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, max_ahead = 10) -> dict[int, list[float]]:
     """
     Calculate the cumulative returns following a pattern for different future periods / candles
     :param df: the stock dataset
@@ -178,6 +178,7 @@ def calculate_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, peri
     :param periods: the range of periods to calculate the returns
     :return: a dictionary with the cumulative returns for each period. Keys are the periods ( = 1,2,3,4,...), values are lists of returns
     """
+    periods = range(1, max_ahead + 1)
     returns = {period: [] for period in periods}
     for i in range(1, len(df) - max(periods)):      # start from 1 since the first row might have NaN
         if pattern_mask.iloc[i]:            # the pattern occurs at this date
@@ -189,7 +190,7 @@ def calculate_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, peri
     return returns
 
 
-def calculate_log_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, periods=range(1, 11)) -> dict[int, list[float]]:
+def calculate_log_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, max_ahead = 10) -> dict[int, list[float]]:
     """
     Calculate the cumulative log returns following a pattern for different future periods / candles
     :param df: the stock dataset
@@ -197,6 +198,7 @@ def calculate_log_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, 
     :param periods: the range of periods to calculate the returns
     :return: a dictionary with the cumulative log returns for each period. Keys are the periods ( = 1,2,3,4,...), values are lists of log returns
     """
+    periods = range(1, max_ahead + 1)
     returns = {period: [] for period in periods}
     for i in range(1, len(df) - max(periods)):    # start from 1 since the first row might have NaN
         if pattern_mask.iloc[i]:
@@ -484,33 +486,35 @@ def generate_pattern_returns(returns: dict[int, list[float]], dim_sample: int, n
     return all_mixed_samples
 
 
-def generate_multiple_mask(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
+def generate_multiple_mask(df: pd.DataFrame, input_mask, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
     """
     Generate multiple random masks for a DataFrame.
     :param df: DataFrame to generate masks for
+    :param input_mask: Mask to use as input for generating random masks
     :param dim_sample: Number of samples to generate
     :param n_iterations: Number of masks to generate
     :param lag: Minimum separation between samples
     :return: List of random masks
     """
-    return [pt.random_mask(df = df, dim_sample = dim_sample, lag = 10) for _ in range(n_iterations)]
+    return [pt.random_mask(df = df, input_mask=input_mask, dim_sample = dim_sample) for _ in range(n_iterations)]
 
 
-def generate_random_returns(df: pd.DataFrame, dim_sample: int, n_iterations: int = 1000, verbose: bool = True) -> list[dict[int, np.ndarray[float]]]:
+def generate_random_returns(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int, n_iterations: int = 1000, verbose: bool = True) -> list[dict[int, np.ndarray[float]]]:
     """
     Generate random returns from random masks. Returns will be rounded to 3 decimal places.
     :param df: DataFrame to generate returns for
+    :param input_mask: Mask to use as input for generating random masks
     :param n_iterations: Number of random samples to generate
     :param dim_sample: Dimension of each random sample
     :return: List of random returns. The returns are dictionaries with keys as periods and values as numpy arrays of returns
     """
-    random_masks = generate_multiple_mask(df, dim_sample=dim_sample, n_iterations=n_iterations)
+    random_masks = generate_multiple_mask(df, input_mask, dim_sample=dim_sample, n_iterations=n_iterations)
     original_returns = []
     counter = 0
     if verbose:
         print('Starting generating samples...')
     for mask in random_masks:
-        returns = calculate_cumReturns_periods(df, mask)
+        returns = calculate_cumReturns_periods(df, mask, max_ahead=15)
         returns = {k: np.array([round(100*r,3) for r in v]) for k, v in returns.items()}      # round to 3 decimal places
         original_returns.append(returns)
         counter += 1
