@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from scipy import stats
 from astropy.stats import knuth_bin_width
 from plotly.subplots import make_subplots
-from statsmodels.tsa.stattools import acf, pacf
 from typing import Dict, Tuple
 
 
@@ -224,81 +223,7 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
 
     fig.show()
 
-def calculate_nbins(data: any) -> int:
-    """
-    Calculate the number of bins for a histogram using Freedman-Diaconis rule 
-    """
-    array = np.array(data)
-    q1 = np.percentile(array, 25)
-    q3 = np.percentile(array, 75)
-    iqr = q3 - q1
-    bin_width = (2 * iqr) / (array.shape[0] ** (1 / 3))
-    bin_count = int(np.ceil((array.max() - array.min()) / bin_width))
-    return int(bin_count)
-
-
-def plot_return_distributions(returns: dict[int, list[float]], num_cols: int = 3):
-    """
-    Plot frequency distributions of returns for each candle using Plotly
-    :param returns: Dictionary of returns. Keys are the number of candles, values are lists of returns
-    :param num_cols: Number of columns in the subplot grid
-    """
-    num_periods = len(returns)
-    num_rows = (num_periods + num_cols - 1) // num_cols
-    
-    fig = make_subplots(rows=num_rows, cols=num_cols, 
-                        subplot_titles=[f"Returns after {period} candles" for period in returns.keys()],
-                        vertical_spacing=0.1)
-    
-    for idx, (period, ret) in enumerate(returns.items()):
-        row = idx // num_cols + 1
-        col = idx % num_cols + 1
-
-        # calculate the number of bins for the histogram
-        #num_bins = calculate_nbins(ret)
-        #num_bins = np.histogram_bin_edges(np.array(ret), bins='auto')
-        width, bin_edges = knuth_bin_width(np.array(ret), return_bins=True)
-        
-        # calculate histogram data
-        hist, bin_edges = np.histogram(ret, bins=bin_edges, density=True)
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        
-        # plot histogram
-        fig.add_trace(go.Bar(x=bin_centers, y=hist, name='', showlegend=False,
-                             hoverinfo='x'), 
-                    row=row, col=col)
-        
-        
-        # fit a normal distribution to the data
-        mu, std = np.mean(ret), np.std(ret)
-        x = np.linspace(min(ret), max(ret), 100)
-        p = stats.norm.pdf(x, mu, std)
-        
-        '''
-        # Fit a normal distribution centered at 0 with the same standard deviation as the data
-        std = np.std(ret)
-        x = np.linspace(min(ret), max(ret), 100)
-        p = stats.norm.pdf(x, 0, std)  # Note: mean is set to 0 here
-        '''
-        
-        # plot the normal distribution
-        fig.add_trace(go.Scatter(x=x, y=p, mode='lines', name='Gaussian Distribution',
-                                line=dict(color='red'), showlegend=False, 
-                                hoverinfo='name',
-                            ), row=row, col=col)
-        
-        # update axes labels
-        fig.update_xaxes(title_text=None, row=row, col=col)
-        fig.update_yaxes(title_text=None, row=row, col=col)
-        # center the x-axis range
-        fig.update_xaxes(range=[np.percentile(ret, 2), np.percentile(ret, 99)], row=row, col=col)
-
-
-    fig.update_layout(height=300*num_rows, width=350*num_cols, 
-                    title_text=f"Return Distributions by Candle vs Gaussian Distribution. (Sample Size: {len(ret)})")
-    fig.show()
-
-
+'''
 def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int, float], win_rate: dict[int, float]) -> None:
     """
     Plot the average cumulative returns, median cumulative returns, and win rate over the future periods
@@ -372,6 +297,7 @@ def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int,
     )
 
     fig.show()
+'''
 
 
 def plot_compared_metrics(pattern_avg_returns: dict[int, float], pattern_median_returns: dict[int, float], pattern_win_rate: dict[int, float],
@@ -552,59 +478,6 @@ def plot_compared_metrics(pattern_avg_returns: dict[int, float], pattern_median_
 
 
 
-def qq_plot(true_returns: dict[int, list[float]], generated_returns: dict[int, list[float]], num_cols: int = 3):
-    """
-    Create Q-Q plots comparing true pattern distribution vs generated distribution
-    
-    :param true_returns: Dictionary of true returns. Keys are days, values are lists of returns
-    :param generated_returns: Dictionary of generated returns. Keys are days, values are lists of returns
-    :param num_cols: Number of columns in the subplot grid
-    """
-    num_days = len(true_returns)
-    num_rows = (num_days + num_cols - 1) // num_cols
-    
-    fig = make_subplots(rows=num_rows, cols=num_cols,
-                        subplot_titles=[f"Q-Q Plot for Day {day}" for day in true_returns.keys()],
-                        vertical_spacing=0.1)
-    
-    for idx, day in enumerate(true_returns.keys()):
-        row = idx // num_cols + 1
-        col = idx % num_cols + 1
-        
-        true_data = np.sort(true_returns[day])
-        generated_data = np.sort(generated_returns[day])
-        
-        # Calculate quantiles
-        n_true = len(true_data)
-        n_generated = len(generated_data)
-        
-        quantiles_true = np.arange(1, n_true + 1) / (n_true + 1)
-        quantiles_generated = np.arange(1, n_generated + 1) / (n_generated + 1)
-        
-        # Interpolate generated data to match true data quantiles
-        generated_interpolated = np.interp(quantiles_true, quantiles_generated, generated_data)
-        
-        # Add scatter plot
-        fig.add_trace(go.Scatter(x=true_data, y=generated_interpolated, mode='markers',
-                                 name='', showlegend=False),
-                      row=row, col=col)
-        
-        # Add diagonal line
-        min_val = min(min(true_data), min(generated_interpolated))
-        max_val = max(max(true_data), max(generated_interpolated))
-        fig.add_trace(go.Scatter(x=[min_val, max_val], y=[min_val, max_val], mode='lines',
-                                 name='y=x', line=dict(color='red'), showlegend=False),
-                      row=row, col=col)
-        
-        # Update axes labels
-        fig.update_xaxes(title_text="True Quantiles", row=row, col=col)
-        fig.update_yaxes(title_text="Generated Quantiles", row=row, col=col)
-    
-    fig.update_layout(height=300*num_rows, width=350*num_cols,
-                      title_text="Q-Q Plots: True vs Generated Returns")
-    fig.show()
-
-
 def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str, num_cols: int = 3):
     """
     Plot frequency distributions of a specific metric for each day using Plotly
@@ -662,137 +535,4 @@ def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_
     fig.show()
 
 
-def compare_boxplots(baseline_results: dict, pattern_results: dict, metric: str, num_cols: int = 3):
-    """
-    Create boxplots comparing baseline and pattern distributions for a specific metric.
-    
-    :param baseline_results: Dictionary of baseline results. Keys are metrics, values are dictionaries with days as keys and lists of values as values.
-    :param pattern_results: Dictionary of pattern results. Same structure as baseline_results.
-    :param metric: String specifying which metric to compare (e.g., 'average_return')
-    :param num_cols: Number of columns in the subplot grid
-    """
-    num_days = len(baseline_results[metric])
-    num_rows = (num_days + num_cols - 1) // num_cols
-    
-    fig = make_subplots(rows=num_rows, cols=num_cols,
-                        subplot_titles=[f"{metric.capitalize()} - Day {day}" for day in baseline_results[metric].keys()],
-                        vertical_spacing=0.1)
-    
-    for idx, day in enumerate(baseline_results[metric].keys()):
-        row = idx // num_cols + 1
-        col = idx % num_cols + 1
-        
-        baseline_data = baseline_results[metric][day]
-        pattern_data = pattern_results[metric][day]
-        
-        # Add boxplot for baseline
-        fig.add_trace(go.Box(y=baseline_data, name='Baseline', boxmean=True, 
-                             marker_color='blue', showlegend=False,
-                             hovertemplate='y: %{y:.2f}<extra></extra>',
-                             width=0.4),
-                      row=row, col=col)
-        
-        # Add boxplot for pattern
-        fig.add_trace(go.Box(y=pattern_data, name='Pattern', boxmean=True, 
-                             marker_color='red', showlegend=False,
-                             hovertemplate='y: %{y:.2f}<extra></extra>',
-                             width=0.4),
-                      row=row, col=col)
-        
-        # Update axes labels
-        fig.update_yaxes(title_text=metric.capitalize() if col == 1 else None, row=row, col=col)
-        fig.update_xaxes(title_text= None, row=row, col=col)
-    
-    fig.update_layout(height=300*num_rows, width=350*num_cols,
-                      title_text=f"Boxplots: Baseline vs Pattern {metric.capitalize()}",
-                      boxmode='group')
-    
-    fig.show()
 
-
-def calculate_plot_acf_pacf(data: pd.Series, lags: int = 10):
-    """
-    Plot ACF and PACF using Plotly with confidence intervals.
-    """
-
-    # Calculate ACF and PACF values and confidence intervals
-    acf_values, confint_acf = acf(data.dropna(), nlags=lags, alpha=0.05)
-    pacf_values, confint_pacf = pacf(data.dropna(), nlags=lags, alpha=0.05)
-
-    # Skip the first value (lag 0)
-    acf_values = acf_values[1:]
-    pacf_values = pacf_values[1:]
-    confint_acf = confint_acf[1:]
-    confint_pacf = confint_pacf[1:]
-
-    # Create subplots
-    fig = make_subplots(rows=1, cols=2, subplot_titles=('ACF of Returns', 'PACF of Returns'))
-
-    # ACF
-    acf_trace = go.Bar(x=list(range(1, lags + 1)), y=acf_values, name='', marker_color='blue', width=0.15)
-    fig.add_trace(acf_trace, row=1, col=1)
-    
-    # Add confidence intervals to ACF plot
-    confint_acf_lower = confint_acf[:, 0] - acf_values
-    confint_acf_upper = confint_acf[:, 1] - acf_values
-    fig.add_trace(go.Scatter(
-        x=list(range(1, lags + 1)),
-        y=confint_acf_upper,
-        name='',
-        mode='lines',
-        line=dict(color='red', dash='dash'),
-        fill=None,
-        showlegend=False,
-        hoverinfo='skip'
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=list(range(1, lags + 1)),
-        y=confint_acf_lower,
-        name='',
-        mode='lines',
-        line=dict(color='red', dash='dash'),
-        fill='tonexty',
-        fillcolor='rgba(255, 0, 0, 0.2)',
-        #fillcolor='rgba(128, 128, 128, 0.2)',
-        showlegend=False,
-        hoverinfo='skip'
-    ), row=1, col=1)
-
-    # PACF
-    pacf_trace = go.Bar(x=list(range(1, lags + 1)), y=pacf_values, name='', marker_color='blue', width=0.15)
-    fig.add_trace(pacf_trace, row=1, col=2)
-    
-    # Add confidence intervals to PACF plot
-    confint_pacf_lower = confint_pacf[:, 0] - pacf_values
-    confint_pacf_upper = confint_pacf[:, 1] - pacf_values
-    fig.add_trace(go.Scatter(
-        x=list(range(1, lags + 1)),
-        y=confint_pacf_upper,
-        name='',
-        mode='lines',
-        line=dict(color='red', dash='dash'),
-        fill=None,
-        showlegend=False,
-        hoverinfo='skip'
-    ), row=1, col=2)
-    fig.add_trace(go.Scatter(
-        x=list(range(1, lags + 1)),
-        y=confint_pacf_lower,
-        name='',
-        mode='lines',
-        line=dict(color='red', dash='dash'),
-        fill='tonexty',
-        #fillcolor='rgba(128, 128, 128, 0.2)',
-        fillcolor='rgba(255, 0, 0, 0.2)',
-        showlegend=False,
-        hoverinfo='skip'
-    ), row=1, col=2)
-
-    # Update layout
-    fig.update_layout(
-        title=None,
-        showlegend=False,
-        autosize=True,
-    )
-
-    fig.show()
