@@ -3,6 +3,182 @@ import numpy as np
 import pandas as pd
 
 
+def three_white_soldiers(df: pd.DataFrame) -> pd.Series:
+    """
+    Three White Soldiers pattern: three consecutive bullish candles with higher closes and opens.
+    Filters: the body of each candle should be at least 50% of the current ATR.
+    """
+
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+
+    # Shifted columns for the previous candle and the candle before that
+    prev_open = df['Open'].shift(1)
+    prev_close = df['Close'].shift(1)
+    prev_body = body.shift(1)
+    prev_direction = direction.shift(1)
+    second_prev_open = df['Open'].shift(2)
+    second_prev_close = df['Close'].shift(2)
+    second_prev_body = body.shift(2)
+    second_prev_direction = direction.shift(2)
+
+    # Indicators shifted
+    prev_atr = df['ATR'].shift(1)
+    second_prev_atr = df['ATR'].shift(2)
+
+    # Q: Do you want to specify that close should be near the high of the candle?
+    # Three white soldiers pattern conditions
+    three_white_soldiers = (
+        (direction == True) &                   # Current candle is bullish
+        (prev_direction == True) &              # Previous candle was bullish
+        (second_prev_direction == True) &       # Second previous candle was bullish
+        (df['Open'] > prev_open) &              # Current open is lower than previous close (no gap up)
+        (df['Close'] > prev_close) &            # Current close is higher than previous close
+        (prev_open > second_prev_open) &        # Previous open is lower than second previous close (no gap up)
+        (prev_close > second_prev_close)        # Previous close is higher than second previous close
+    )
+
+    soldiers_mask = (
+        three_white_soldiers &
+        (body > 0.5 * df['ATR']) &
+        (prev_body > 0.5 * prev_atr) &
+        (second_prev_body > 0.5 * second_prev_atr)
+        # any further conditions or filters can be added here ...
+    )
+    return soldiers_mask
+
+
+def three_black_crows(df: pd.DataFrame) -> pd.Series:
+    """
+    Three Black Crows pattern: three consecutive bearish candles with lower closes and opens.
+    Filters: the body of each candle should be at least 50% of the current ATR.
+    """
+
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+
+    # Shifted columns for the previous candle
+    prev_open = df['Open'].shift(1)
+    prev_close = df['Close'].shift(1)
+    prev_body = body.shift(1)
+    prev_direction = direction.shift(1)
+    second_prev_open = df['Open'].shift(2)
+    second_prev_close = df['Close'].shift(2)
+    second_prev_body = body.shift(2)
+    second_prev_direction = direction.shift(2)
+
+    # Three black crows pattern conditions
+    three_black_crows = (
+        (direction == False) &                  # Current candle is bearish
+        (prev_direction == False) &             # Previous candle was bearish
+        (second_prev_direction == False) &      # Second previous candle was bearish
+        (df['Open'] < prev_open) &              # Current open is higher than previous close (no gap down)
+        (df['Close'] < prev_close) &            # Current close is lower than previous close
+        (prev_open < second_prev_open) &        # Previous open is higher than second previous close (no gap down)
+        (prev_close < second_prev_close)        # Previous close is lower than second previous close
+    )
+
+    crows_mask = (
+        three_black_crows &
+        (body > 0.35 * df['ATR']) &
+        (prev_body > 0.35 * df['ATR']) &
+        (second_prev_body > 0.35 * df['ATR'])
+        # any further conditions or filters can be added here ...
+    )
+    return crows_mask
+
+
+def morning_star(df: pd.DataFrame) -> pd.Series:
+    """
+    Morning Star pattern: a bearish candle followed by continuation is countered by a gap up bullish candle that closes near the high.
+    Filters: the body of the second candle should be at least 50% of the current ATR.
+    """
+    # Calculate body - range - direction of each candle
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+    midpoint = df['Open'] + (df['Close'] - df['Open'])/2
+
+    # Shifted columns for the previous candle
+    prev_open = df['Open'].shift(1)
+    prev_close = df['Close'].shift(1)
+    prev_high = df['High'].shift(1)
+    prev_low = df['Low'].shift(1)
+    prev_body = body.shift(1)
+    prev_direction = direction.shift(1)
+    second_prev_open = df['Open'].shift(2)
+    second_prev_close = df['Close'].shift(2)
+    second_prev_body = body.shift(2)
+    second_prev_direction = direction.shift(2)
+    second_prev_midpoint = midpoint.shift(2)
+
+    # Morning star pattern conditions
+    morning_star = (
+        (direction == True) &                   # Current candle is bullish
+        (second_prev_direction == False) &      # Previous candle was bearish
+        (df['Open'] > prev_close) &             # Gap Up (considering close only)
+        (df['Close'] > second_prev_midpoint) &             # Current close is higher than the midpoint of the candle 2 days ago
+        (df['Low'] > prev_low) &                # Current low is higher than previous low
+        (prev_open < second_prev_close) &       # Gap Down (considering close only)
+        (prev_close < second_prev_close)        # Previous close is lower than the close 2 days ago
+    )
+
+    star_mask = (
+        morning_star &
+        # any further conditions or filters can be added here ...
+        (second_prev_body > 0.5 * df['ATR']) &
+        (body > 0.5 * df['ATR'])
+        # like middle candle creates a true gap
+    )
+    return star_mask
+
+
+def evening_star(df: pd.DataFrame) -> pd.Series:
+    """
+    Evening Star pattern: a bullish candle followed by continuation is countered by a gap down bearish candle that closes near the low.
+    """
+    # Calculate body - range - direction of each candle
+    body = abs(df['Close'] - df['Open'])
+    full_range = abs(df['High'] - df['Low'])
+    direction = df['Close'] > df['Open']
+    midpoint = df['Open'] + (df['Close'] - df['Open'])/2
+
+    # Shifted columns for the previous candle
+    prev_open = df['Open'].shift(1)
+    prev_close = df['Close'].shift(1)
+    prev_high = df['High'].shift(1)
+    prev_low = df['Low'].shift(1)
+    prev_body = body.shift(1)
+    prev_direction = direction.shift(1)
+    second_prev_open = df['Open'].shift(2)
+    second_prev_close = df['Close'].shift(2)
+    second_prev_body = body.shift(2)
+    second_prev_direction = direction.shift(2)
+    second_prev_midpoint = midpoint.shift(2)
+
+    # Evening star pattern conditions
+    evening_star = (
+        (direction == False) &                  # Current candle is bearish
+        (second_prev_direction == True) &       # Previous candle was bullish
+        (df['Open'] < prev_close) &             # Gap Down (considering close only)
+        (df['Close'] < second_prev_midpoint ) &             # Current close is lower than the midpoint of the candle 2 days ago
+        (df['High'] < prev_high) &              # Current high is lower than previous high
+        (prev_open > second_prev_close) &       # Gap Up (considering close only)
+        (prev_close > second_prev_close)        # Previous close is higher than the close 2 days ago
+    )
+
+    star_mask = (
+        evening_star &
+        # any further conditions or filters can be added here ...
+        (second_prev_body > 0.5 * df['ATR']) &
+        (body > 0.5 * df['ATR'])
+        # like middle candle creates a true gap
+    )
+    return star_mask
+
+
 def bullish_engulfing(df: pd.DataFrame) -> pd.Series:
     """
     Bullish Engulfing pattern: the second candle is bullish and its body engulfs the body of the previous candle.
@@ -190,15 +366,22 @@ def bearish_marubozu(df: pd.DataFrame) -> pd.Series:
 
 # ARTIFICIAL MASKS
 
-def random_mask(df: pd.DataFrame, dim_sample: int = None, lag: int = 10) -> pd.Series:
+def random_mask(df: pd.DataFrame, dim_sample: int = 100, lag: int = 10) -> pd.Series:
     """
     Generate a random mask with dim_sample valid (True) size that are at least 'lag' days apart.
     """
-    if dim_sample==None:
-        dim_sample = 0.8*(len(df)/lag)     # if the user does not specify the sample size, it will be 85% of maximum possible sample size
+    if dim_sample >= 0.975*len(df):
+        raise ValueError("The sample size is too large compared to the dataset size.")
+    elif dim_sample >= 0.8*len(df):
+        print("The sample size is covering a large portion of the dataset. Consider reducing the sample size.")
+        
     n = len(df)
     all_indices = list(range(1,n))      # avoid index 0 for Nan values
     valid_samples = []
+    # sample without caring whether they are at least 'lag' days apart (could sample adjacent days)
+    valid_samples = random.sample(all_indices, dim_sample)
+
+    """
     attempt_count = 0  # Track the number of attempts to find valid samples
     
     while len(valid_samples) < dim_sample + 1:
@@ -212,6 +395,7 @@ def random_mask(df: pd.DataFrame, dim_sample: int = None, lag: int = 10) -> pd.S
         sample = random.choice(all_indices)
         if all(abs(sample - s) >= lag for s in valid_samples):  # check if the new sample is at least 'lag' days apart from any other sample
             valid_samples.append(sample)
+    """
     
     neutral_mask = pd.Series([False] * n)
     neutral_mask.iloc[valid_samples] = True
@@ -251,6 +435,10 @@ def filter_mask(mask: pd.Series, step: int) -> pd.Series:
 
 # dictionary of patterns
 patterns = {
+    'Morning Star': {'function': morning_star, 'candles': 3, 'direction': 1},
+    'Evening Star': {'function': evening_star, 'candles': 3, 'direction': -1},
+    'Three White Soldiers': {'function': three_white_soldiers, 'candles': 3, 'direction': 1},
+    'Three Black Crows': {'function': three_black_crows, 'candles': 3, 'direction': -1},
     'Bullish Engulfing': {'function': bullish_engulfing, 'candles': 2, 'direction': 1},
     'Bearish Engulfing': {'function': bearish_engulfing, 'candles': 2, 'direction': -1},
     'Bullish Harami': {'function': bullish_harami, 'candles': 2, 'direction': 1},
