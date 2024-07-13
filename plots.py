@@ -82,7 +82,7 @@ def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, p
         
         # add a label with just the date (not time)
         fig.add_annotation(
-            x = date - pd.Timedelta(hours=60),
+            x = date - pd.Timedelta(hours=48),
             y = 0.05,
             yref = "paper",
             text = date.strftime('%Y-%m-%d'),
