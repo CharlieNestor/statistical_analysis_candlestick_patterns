@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from scipy import stats
-from astropy.stats import knuth_bin_width
 from plotly.subplots import make_subplots
 from typing import Dict, Tuple
 
@@ -52,9 +51,10 @@ def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
 def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, pattern_name: str) -> None:
     """
     Plot the close price of the stock with vertical lines marking the dates where patterns occur
-    :param data: the stock data
+    :param data: the stock dataset
     :param ticker: the stock ticker
     :param mask: a boolean mask with True where patterns occur
+    :param pattern_name: the name of the pattern
     """
     fig = go.Figure()
     
@@ -115,7 +115,8 @@ def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, p
     fig.show()
 
 
-def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker: str, pattern_name: str, max_candles=20, back_candles=5, max_subplots=12) -> None:
+def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker: str, pattern_name: str, 
+                max_candles=20, back_candles=5, max_subplots=12) -> None:
     """
     create a subplot candlestick chart for each pattern detected up to max_subplots, randomly selected
     :param data: the stock data
