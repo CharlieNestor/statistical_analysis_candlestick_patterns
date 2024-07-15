@@ -479,10 +479,11 @@ def random_mask(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int = 100, 
     neutral_mask.iloc[valid_samples] = True
     return neutral_mask
 
+'''
 
 def filter_mask(mask: pd.Series, step: int) -> pd.Series:
     """
-    Ensure True values in the mask are separated by at least 'step' Falses.
+    Ensure True values in the mask are separated by at least 'step' False.
     :param mask: A pd.Series of boolean values.
     :param step: Minimum number of False values between True values.
     :return: A pd.Series with adjusted True values according to the step separation.
@@ -509,6 +510,9 @@ def filter_mask(mask: pd.Series, step: int) -> pd.Series:
     
     # convert back to pd.Series
     return pd.Series(mask_array, index=mask.index)
+
+'''
+
 
 
 # dictionary of patterns
