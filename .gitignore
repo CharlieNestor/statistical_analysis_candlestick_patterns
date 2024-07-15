@@ -2,6 +2,8 @@ __pycache__/
 
 .env_pattern/
 
+.env
+
 playground2.ipynb
 playground3.ipynb
 playground4.ipynb
@@ -9,3 +11,5 @@ playground4.ipynb
 plots_auxilliary.py
 
 tickers.txt
+
+CoverFig_BullishEng.png
