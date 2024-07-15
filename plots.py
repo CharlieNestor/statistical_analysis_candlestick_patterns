@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from scipy import stats
 from plotly.subplots import make_subplots
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 
 def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
@@ -477,8 +477,6 @@ def plot_compared_metrics(pattern_avg_returns: dict[int, float], pattern_median_
     fig.show()
 
 
-
-
 def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str, num_cols: int = 3):
     """
     Plot frequency distributions of a specific metric for each day using Plotly
@@ -533,6 +531,72 @@ def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_
     fig.update_layout(height=300*num_rows, width=350*num_cols,
                       title_text=f"{metric_name} Distributions by Day vs Normal Distribution. (Sample size: {len(values)})")
     
+    fig.show()
+
+
+def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]], 
+            metric_name: str, 
+            comparison_data: Union[Dict[str, Dict[int, np.ndarray]], str] = 'gaussian', 
+            num_cols: int = 3):
+    """
+    Create Q-Q plots comparing a metric's distribution vs Gaussian or another distribution.
+    
+    :param metrics: Dictionary of metrics. Keys are metric names, values are nested dictionaries 
+                    with days as keys and numpy arrays of observations as values.
+    :param metric_name: Name of the metric to plot.
+    :param comparison_data: Either 'gaussian' for comparison with normal distribution, 
+                            or a dictionary similar to 'metrics' for comparison with another dataset.
+    :param num_cols: Number of columns in the subplot grid.
+    """
+    if metric_name not in metrics:
+        raise ValueError(f"Metric '{metric_name}' not found in the metrics dictionary.")
+
+    data = metrics[metric_name]
+    num_days = len(data)
+    num_rows = (num_days + num_cols - 1) // num_cols
+    
+    fig = make_subplots(rows=num_rows, cols=num_cols,
+                        subplot_titles=[f"Q-Q Plot for Day {day}" for day in data.keys()],
+                        vertical_spacing=0.1)
+    
+    for idx, (day, metric_data) in enumerate(data.items()):
+        row = idx // num_cols + 1
+        col = idx % num_cols + 1
+        
+        metric_data = np.sort(metric_data)
+        
+        if comparison_data == 'gaussian':
+            # Compare with Gaussian distribution
+            theoretical_quantiles = stats.norm.ppf(np.linspace(0.01, 0.99, len(metric_data)))
+            comparison_label = "Theoretical Quantiles"
+        else:
+            # Compare with another dataset
+            if metric_name not in comparison_data:
+                raise ValueError(f"Metric '{metric_name}' not found in the comparison data.")
+            comparison_metric_data = np.sort(comparison_data[metric_name][day])
+            theoretical_quantiles = np.interp(np.linspace(0, 1, len(metric_data)), 
+                                              np.linspace(0, 1, len(comparison_metric_data)), 
+                                              comparison_metric_data)
+            comparison_label = "Comparison Quantiles"
+        
+        # Add scatter plot
+        fig.add_trace(go.Scatter(x=theoretical_quantiles, y=metric_data, mode='markers',
+                                 name='', showlegend=False),
+                      row=row, col=col)
+        
+        # Add diagonal line
+        min_val = min(min(theoretical_quantiles), min(metric_data))
+        max_val = max(max(theoretical_quantiles), max(metric_data))
+        fig.add_trace(go.Scatter(x=[min_val, max_val], y=[min_val, max_val], mode='lines',
+                                 name='y=x', line=dict(color='red'), showlegend=False),
+                      row=row, col=col)
+        
+        # Update axes labels
+        fig.update_xaxes(title_text=comparison_label, row=row, col=col)
+        fig.update_yaxes(title_text=f"{metric_name} Quantiles", row=row, col=col)
+    
+    fig.update_layout(height=300*num_rows, width=350*num_cols,
+                      title_text=f"Q-Q Plots: {metric_name} vs {'Gaussian' if comparison_data == 'gaussian' else 'Comparison Data'}")
     fig.show()
 
 
