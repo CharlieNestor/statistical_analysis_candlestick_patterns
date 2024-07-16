@@ -4,9 +4,8 @@ import patterns as pt
 import statsmodels.api as sm
 import statsmodels.stats.api as sms
 from scipy import stats
-from statsmodels.tsa.stattools import adfuller, acf, pacf
-from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
-from statsmodels.stats.stattools import durbin_watson
+
+
 from typing import List, Dict, Tuple, Union
 
 
@@ -58,45 +57,6 @@ def calculate_ATR(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
 
 
 # STATISTICAL TESTS
-
-def adf_test(series: pd.Series) -> None:
-    """
-    Perform the Augmented Dickey-Fuller test on a time series.
-    : param series: The time series to test
-    : return: Three values containing the ADF statistic and p-value and the number of lags used in the test
-    """
-    result = adfuller(series.dropna(), maxlag=15)
-    # Extract and display the test statistics
-    adf_statistic = result[0]
-    p_value = result[1]
-    used_lag = result[2]
-    
-    print('Augmented Dickey-Fuller Test:')
-    print(f"Statistic: {adf_statistic}")
-    print(f"p-value: {p_value}")
-    print(f"Used Lag: {used_lag}")
-
-def ljung_box_test(series: pd.Series, lags: int = 10):
-    result = acorr_ljungbox(series.dropna(), lags=lags)
-    print('Ljung-Box Test:')
-    print('Statistic:', result.lb_stat)
-    print('p-value:', result.lb_pvalue)
-
-def durbin_watson_test(series: pd.Series):
-    dw_statistic = durbin_watson(series.dropna())
-    print('Durbin-Watson Statistic:', dw_statistic)
-
-def engle_arch_test(series: pd.Series, lags: int = 12):
-    result = het_arch(series.dropna(), nlags=lags)
-    print('Engle\'s ARCH Test:')
-    print('Lagrange Multiplier statistic:', result[0])
-    print('p-value:', result[1])
-
-def jarque_bera_test(series: pd.Series):
-    result = stats.jarque_bera(series.dropna())
-    print('Jarque-Bera Test:')
-    print('Statistic:', result.statistic)
-    print('p-value:', result.pvalue)
 
 
 def normality_tests(data: Union[pd.Series, np.ndarray]) -> dict:
@@ -165,61 +125,6 @@ def check_metric_normality(metrics: Dict[str, Dict[int, np.ndarray]], metric_nam
 
 
 
-def run_tests(series):
-    results = {}
-    
-    # ADF Test
-    adf_result = adfuller(series)
-    try:
-        results['adf_statistic'] = adf_result[0]
-        results['adf_pvalue'] = adf_result[1]
-    except Exception as e:
-        results['adf_statistic'] = None
-        results['adf_pvalue'] = None
-        print(f"ADF test failed: {e}")
-    
-    # Ljung-Box Test
-    lb_result = acorr_ljungbox(series, lags=10)
-    try:
-        lb_stats = lb_result.lb_stat
-        lb_pvalues = lb_result.lb_pvalue
-        for i in range(1,11):
-            results[f'lb_statistic_lag_{i}'] = lb_stats[i]
-            results[f'lb_pvalue_lag_{i}'] = lb_pvalues[i]
-    except Exception as e:
-        for i in range(1,11):
-            results[f'lb_statistic_lag_{i}'] = None
-            results[f'lb_pvalue_lag_{i}'] = None
-        print(f"Ljung-Box test failed: {e}")
-    
-    # Durbin-Watson Test
-    try:
-        results['dw_statistic'] = durbin_watson(series)
-    except Exception as e:
-        results['dw_statistic'] = None
-        print(f"Durbin-Watson test failed: {e}")
-    
-    # Engle's ARCH Test
-    arch_result = het_arch(series)
-    try:
-        results['arch_statistic'] = arch_result[0]
-        results['arch_pvalue'] = arch_result[1]
-    except Exception as e:
-        results['arch_statistic'] = None
-        results['arch_pvalue'] = None
-        print(f"Engle's ARCH test failed: {e}")
-    
-    # Jarque-Bera Test
-    jb_result = stats.jarque_bera(series)
-    try:
-        results['jb_statistic'] = jb_result.statistic
-        results['jb_pvalue'] = jb_result.pvalue
-    except Exception as e:
-        results['jb_statistic'] = None
-        results['jb_pvalue'] = None
-        print(f"Jarque-Bera test failed: {e}")
-    
-    return results
 
 
 
@@ -434,43 +339,3 @@ def calculate_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], lo
     
     return confidence_intervals
 
-
-
-def compare_distributions(baseline_results: dict, pattern_results: dict, metric: str):
-    """
-    Perform statistical tests comparing baseline and pattern distributions for a specific metric.
-    
-    :param baseline_results: Dictionary of baseline results. Keys are metrics, values are dictionaries with days as keys and lists of values as values.
-    :param pattern_results: Dictionary of pattern results. Same structure as baseline_results.
-    :param metric: String specifying which metric to compare (e.g., 'average_return')
-    """
-    print(f"Statistical tests for {metric}:")
-    print("=" * 50)
-
-    for day in baseline_results[metric].keys():
-        baseline_data = np.array(baseline_results[metric][day])
-        pattern_data = np.array(pattern_results[metric][day])
-
-        # Calculate differences in mean and median
-        mean_diff = np.mean(pattern_data) - np.mean(baseline_data)
-        median_diff = np.median(pattern_data) - np.median(baseline_data)
-
-        # Perform t-test for means
-        t_stat, t_pvalue = stats.ttest_ind(pattern_data, baseline_data)
-
-        # Perform Mann-Whitney U test for medians
-        u_stat, u_pvalue = stats.mannwhitneyu(pattern_data, baseline_data, alternative='two-sided')
-
-        # Perform Kolmogorov-Smirnov test for distribution shape
-        ks_stat, ks_pvalue = stats.ks_2samp(pattern_data, baseline_data)
-
-        # Perform Levene test for equality of variances
-        levene_stat, levene_pvalue = stats.levene(pattern_data, baseline_data)
-
-        print(f"\nDay {day}:")
-        print(f"  Mean difference (Pattern - Baseline): {mean_diff:.4f}")
-        print(f"  Median difference (Pattern - Baseline): {median_diff:.4f}")
-        print(f"  T-test (means): p-value = {t_pvalue:.4f}")
-        print(f"  Mann-Whitney U test (medians): p-value = {u_pvalue:.4f}")
-        print(f"  Kolmogorov-Smirnov test (distribution shape): p-value = {ks_pvalue:.4f}")
-        print(f"  Levene test (equality of variances): p-value = {levene_pvalue:.4f}")
