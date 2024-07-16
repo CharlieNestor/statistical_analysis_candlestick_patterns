@@ -126,8 +126,6 @@ def check_metric_normality(metrics: Dict[str, Dict[int, np.ndarray]], metric_nam
 
 
 
-
-
 # ANALYSIS functions relative to each periods (1 to 10 days) and metrics
 
 def calculate_cumReturns_periods(df: pd.DataFrame, pattern_mask: pd.Series, max_ahead = 10) -> dict[int, list[float]]:
