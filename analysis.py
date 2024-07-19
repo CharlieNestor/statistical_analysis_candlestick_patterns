@@ -316,7 +316,8 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
     return results
 
 
-def calculate_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], low_perc: float = 2.5, high_perc: float = 97.5) -> Dict[str, Dict[int, Tuple[float, float]]]:
+def calculate_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], 
+                                low_perc: float = 2.5, high_perc: float = 97.5, is_log_ret: bool = True) -> Dict[str, Dict[int, Tuple[float, float]]]:
     """
     Calculate the 95% confidence intervals for each metric based on the given distributions.
     
@@ -333,7 +334,16 @@ def calculate_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], lo
         for day, values in day_values.items():
             lower = np.percentile(values, low_perc)
             upper = np.percentile(values, high_perc)
-            confidence_intervals[metric][day] = (round(lower, 3), round(upper, 3))
+            mean = np.mean(values)
+
+            # if the returns are in log scale, convert the confidence intervals to linear scale
+            if is_log_ret and metric != 'win_rate':     # not valid for win_rate
+                # Convert from log scale to linear scale
+                lower = (np.exp(lower) - 1) * 100
+                upper = (np.exp(upper) - 1) * 100
+                mean = (np.exp(mean) - 1) * 100         # Geometric mean in linear scale
+
+            confidence_intervals[metric][day] = (round(lower, 3), round(mean, 3), round(upper, 3))
     
     return confidence_intervals
 
