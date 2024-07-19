@@ -562,8 +562,14 @@ def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]],
     for idx, (day, metric_data) in enumerate(data.items()):
         row = idx // num_cols + 1
         col = idx % num_cols + 1
-        
+        # sort and standardize the data
         metric_data = np.sort(metric_data)
+        std_dev = np.std(metric_data)
+        if std_dev != 0:
+            metric_data = (metric_data - np.mean(metric_data)) / std_dev
+        else:
+            print(f"Warning: Standard deviation is 0 for Day {day}. Skipping standardization.")
+        metric_data = (metric_data - np.mean(metric_data)) / np.std(metric_data)
         
         if comparison_data == 'gaussian':
             # Compare with Gaussian distribution
@@ -593,7 +599,10 @@ def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]],
         
         # Update axes labels
         fig.update_xaxes(title_text=comparison_label, row=row, col=col)
-        fig.update_yaxes(title_text=f"{metric_name} Quantiles", row=row, col=col)
+        if col == 1:
+            fig.update_yaxes(title_text=f"{metric_name} Quantiles", row=row, col=col)
+        else:
+            fig.update_yaxes(title_text=None, row=row, col=col)
     
     fig.update_layout(height=300*num_rows, width=350*num_cols,
                       title_text=f"Q-Q Plots: {metric_name} vs {'Gaussian' if comparison_data == 'gaussian' else 'Comparison Data'}")
