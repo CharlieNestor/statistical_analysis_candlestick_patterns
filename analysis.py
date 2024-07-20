@@ -316,8 +316,8 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
     return results
 
 
-def calculate_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], 
-                                low_perc: float = 2.5, high_perc: float = 97.5, is_log_ret: bool = True) -> Dict[str, Dict[int, Tuple[float, float]]]:
+def calculate_nonParametric_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], low_perc: float = 2.5, high_perc: float = 97.5, 
+                                                is_log_ret: bool = True) -> Dict[str, Dict[int, Tuple[float, float]]]:
     """
     Calculate the 95% confidence intervals for each metric based on the given distributions.
     
