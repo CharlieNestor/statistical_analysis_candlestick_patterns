@@ -1,11 +1,10 @@
+import math
 import numpy as np
 import pandas as pd
 import patterns as pt
 import statsmodels.api as sm
 import statsmodels.stats.api as sms
 from scipy import stats
-
-
 from typing import List, Dict, Tuple, Union
 
 
@@ -226,6 +225,13 @@ def generate_random_returns(df: pd.DataFrame, input_mask: pd.Series, dim_sample:
     :param verbose: Whether to print progress messages
     :return: List of random returns. The returns are dictionaries with keys as periods and values as numpy arrays of returns
     """
+    # Ensure the dimension of the sample is a multiple of 50 with a minimum of 100
+    floor = 100
+    if dim_sample <= floor:
+            dim_sample = floor
+    else:
+        dim_sample = math.ceil(dim_sample / 50) * 50
+    # Generate random masks
     random_masks = generate_multiple_mask(df, input_mask, dim_sample=dim_sample, n_iterations=n_iterations)
     original_returns = []
     counter = 0
@@ -308,7 +314,11 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
     return results
 
 
-def calculate_nonParametric_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], low_perc: float = 2.5, high_perc: float = 97.5, 
+# STATISTICAL TESTS functions
+
+
+def calculate_nonParametric_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], 
+                                                low_perc: float = 2.5, high_perc: float = 97.5, 
                                                 is_log_ret: bool = True) -> Dict[str, Dict[int, Tuple[float, float]]]:
     """
     Calculate the 95% confidence intervals for each metric based on the given distributions.
@@ -339,3 +349,187 @@ def calculate_nonParametric_confidence_intervals(metrics: Dict[str, Dict[int, np
     
     return confidence_intervals
 
+
+def calculate_parametric_confidence_intervals(metrics: Dict[str, Dict[int, np.ndarray]], 
+                                              confidence_level: float = 0.95,
+                                              is_log_ret: bool = True) -> Dict[str, Dict[int, Tuple[float, float, float]]]:
+    """
+    Calculate the parametric confidence intervals for each metric based on the given distributions.
+    
+    :param metrics: Dictionary with metrics as keys and nested dictionaries as values.
+                    The nested dictionaries have days as keys and numpy arrays of metric values as values.
+    :param confidence_level: Confidence level for the interval (default is 0.95 for 95% CI)
+    :param is_log_ret: Boolean indicating whether the returns are in log scale (default is True)
+    :return: Dictionary with metrics as keys and nested dictionaries as values.
+             The nested dictionaries have days as keys and tuples of confidence intervals (lower, mean, upper) as values.
+    """
+    parametric_confidence_intervals = {}
+    z_value = stats.norm.ppf((1 + confidence_level) / 2)  # z-value for the given confidence level
+
+    for metric, day_values in metrics.items():
+        parametric_confidence_intervals[metric] = {}
+        for day, values in day_values.items():
+            if is_log_ret and metric != 'win_rate':
+                # For log returns
+                mean = np.mean(values)
+                std_error = np.std(values)
+                
+                # Calculate CI in log scale
+                lower_log = mean - z_value * std_error
+                upper_log = mean + z_value * std_error
+                
+                # Transform to linear scale
+                lower = (np.exp(lower_log) - 1) * 100
+                upper = (np.exp(upper_log) - 1) * 100
+                mean = (np.exp(mean) - 1) * 100     # Geometric mean in linear scale
+            else:
+                # For win rate or if not using log returns
+                mean = np.mean(values)
+                std_error = np.std(values)
+                lower = mean - z_value * std_error
+                upper = mean + z_value * std_error
+
+            parametric_confidence_intervals[metric][day] = (round(lower, 3), round(mean, 3), round(upper, 3))
+
+    return parametric_confidence_intervals
+
+
+def empirical_pvalue(base_distribution: np.ndarray, pattern_value: float, greater: bool = True) -> float:
+    """
+    Calculate the empirical p-value for a given pattern value and base distribution.
+    
+    :param base_distribution: Numpy array of base metric values.
+    :param pattern_value: Single value from the pattern metric.
+    :param greater: If True, calculate upper-tail p-value; if False, calculate lower-tail p-value.
+    :return: Empirical p-value.
+    """
+    if greater:
+        return (base_distribution >= pattern_value).mean()
+    else:
+        return (base_distribution <= pattern_value).mean()
+
+
+def calculate_empirical_pvalues(pattern_metrics: Dict[str, Dict[int, float]], 
+                                base_distributions: Dict[str, Dict[int, np.ndarray]], 
+                                max_days: int = 15) -> Dict[str, Dict[str, Dict[int, float]]]:
+    """
+    Calculate empirical p-values comparing pattern metrics to base distribution metrics.
+
+    This function computes both upper-tail (pattern > base) and lower-tail (pattern < base) 
+    empirical p-values for each metric and day.
+
+    :param pattern_metrics: Dictionary of pattern metrics. 
+                            Keys are metric names, values are dictionaries with days as keys and metric values as values.
+    :param base_distributions: Dictionary of base metrics. 
+                         Keys are metric names, values are dictionaries with days as keys and numpy arrays of metric values as values.
+    :param max_days: Maximum number of days to calculate p-values for (default is 15).
+    :return: Dictionary with metrics as keys, containing nested dictionaries for 'high' and 'low' p-values, 
+             each containing dictionaries with days as keys and p-values as values.
+    """
+    empirical_pvalues = {}
+
+    for metric in pattern_metrics.keys():
+        empirical_pvalues[metric] = {'high': {}, 'low': {}}
+        
+        for day in range(1, max_days + 1):
+            base_values = base_distributions[metric][day]
+            
+            if metric != 'win_rate':  # win rate is already in linear scale
+                pattern_value = pattern_metrics[metric][day] / 100  # Convert percentage to decimal
+            else:
+                pattern_value = pattern_metrics[metric][day]
+            
+            p_value_greater = empirical_pvalue(base_values, pattern_value, greater=True)
+            p_value_less = empirical_pvalue(base_values, pattern_value, greater=False)
+            
+            empirical_pvalues[metric]['high'][day] = p_value_greater
+            empirical_pvalues[metric]['low'][day] = p_value_less
+
+    return empirical_pvalues
+
+
+def transform_confidence_intervals(ci_dict: Dict[str, Dict[int, Tuple[float, float, float]]]) -> Tuple[Dict[str, Dict[str, Dict[int, float]]], Dict[str, Dict[int, float]]]:
+    """
+    Transform the structure of confidence interval dictionaries.
+
+    This function takes a dictionary of confidence intervals and transforms it into two separate dictionaries:
+    one for the confidence intervals (with 'high' and 'low' bounds) and another for the mean estimates.
+
+    :param ci_dict: A dictionary with metrics as keys, containing nested dictionaries with days as keys 
+                    and tuples (lower bound, mean, upper bound) as values.
+    :return: A tuple containing two dictionaries:
+             1. A transformed dictionary with metrics as keys, containing nested dictionaries for 'high' and 'low' bounds,
+                each containing dictionaries with days as keys and bound values as values.
+             2. A dictionary with metrics as keys, containing nested dictionaries with days as keys and mean values as values.
+    """
+    transformed = {}
+    basecase_estimates = {}
+
+    for metric, days_data in ci_dict.items():
+        transformed[metric] = {'high': {}, 'low': {}}
+        basecase_estimates[metric] = {}
+
+        for day, (lower, mean, upper) in days_data.items():
+            transformed[metric]['low'][day] = lower
+            transformed[metric]['high'][day] = upper
+            basecase_estimates[metric][day] = mean
+
+    return transformed, basecase_estimates
+
+
+def create_significance_table(pattern_metrics: Dict[str, Dict[int, float]], 
+                              basecase_estimates: Dict[str, Dict[int, float]],
+                              empirical_pvalues: Dict[str, Dict[str, Dict[int, float]]],
+                              parametric_conf_int: Dict[str, Dict[str, Dict[int, float]]],
+                              non_parametric_conf_int: Dict[str, Dict[str, Dict[int, float]]],) -> Dict[str, np.ndarray]:
+    """
+    Create a table of significance levels for different metrics comparing pattern performance to base case.
+    
+    This function compares pattern metrics to base case estimates and various confidence intervals,
+    assigning significance scores based on the comparisons. Positive scores indicate the pattern
+    outperforming the base case, while negative scores indicate underperformance.
+    
+    :param pattern_metrics: Dictionary of pattern metric values
+    :param basecase_estimates: Dictionary of base case estimate values
+    :param empirical_pvalues: Dictionary of empirical p-values
+    :param parametric_conf_int: Dictionary of parametric confidence intervals
+    :param non_parametric_conf_int: Dictionary of non-parametric confidence intervals
+    :return: Dictionary with metrics as keys and numpy arrays of significance scores as values
+    """
+
+    metrics_list = ['win_rate', 'average_return', 'median_return']
+    days = len(pattern_metrics['win_rate'])
+    table = {metric: np.zeros(days, dtype=int) for metric in metrics_list}
+    
+    for metric in metrics_list:
+        for day in range(1, days + 1):
+            pattern_value = pattern_metrics[metric][day]
+            basecase_value = basecase_estimates[metric][day]
+            difference = pattern_value - basecase_value
+            
+            if difference > 0:
+                direction = 'high'
+                increment = 1
+            else:
+                direction = 'low'
+                increment = -1
+            
+            count = 0
+            # Check only the relevant direction (high or low) for all tests
+            if empirical_pvalues[metric][direction][day] < 0.05:
+                count += increment
+            
+            if direction == 'high':
+                if pattern_value > parametric_conf_int[metric][direction][day]:
+                    count += increment
+                if pattern_value > non_parametric_conf_int[metric][direction][day]:
+                    count += increment
+            else:  # direction == 'low'
+                if pattern_value < parametric_conf_int[metric][direction][day]:
+                    count += increment
+                if pattern_value < non_parametric_conf_int[metric][direction][day]:
+                    count += increment
+            
+            table[metric][day - 1] = count  # -1 because array is 0-indexed
+    
+    return table
