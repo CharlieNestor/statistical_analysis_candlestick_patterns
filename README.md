@@ -28,6 +28,7 @@ Candlestick patterns are widely used in technical analysis, but their effectiven
 - `analysis.py`: Functions for statistical analysis of pattern returns
 - `Pattern_Medium_01.ipynb`: Jupyter notebook showcasing the code journey related to the first Medium publication
 - `Pattern_Medium_02.ipynb`: Jupyter notebook showcasing the code and analysis journey described in the second Medium publication
+- `Pattern_playground.ipynb`: Jupyter notebook for those who wants to directly play with the patterns and the functionalities
 
 ## Future Work
 
