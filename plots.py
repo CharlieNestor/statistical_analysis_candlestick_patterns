@@ -300,7 +300,7 @@ def plot_original_stats(avg_returns: dict[int, float], median_returns: dict[int,
     fig.show()
 '''
 
-
+'''
 def plot_compared_metrics(pattern_avg_returns: dict[int, float], pattern_median_returns: dict[int, float], pattern_win_rate: dict[int, float],
                         base_avg_returns: dict[int, float], base_median_returns: dict[int, float], base_win_rate: dict[int, float],
                         confidence_intervals: Dict[str, Dict[int, Tuple[float, float]]], show_interval:str = 'average_return') -> None:
@@ -475,6 +475,92 @@ def plot_compared_metrics(pattern_avg_returns: dict[int, float], pattern_median_
     )
 
     fig.show()
+'''
+
+def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]], 
+                          base_metrics: Dict[str, Dict[int, Tuple[float, float, float]]], 
+                          show_interval: str = 'average_return') -> None:
+    """
+    Plot the average returns, median returns, and win rate over the future periods
+    for both pattern and base case, including confidence intervals for the base case.
+    
+    :param pattern_metrics: dictionary with pattern metrics. Keys are metric names, values are dictionaries with periods as keys and metric values as values.
+    :param base_metrics: dictionary with base metrics and confidence intervals. Keys are metric names, values are dictionaries with periods as keys and tuples (lower CI, mean, upper CI) as values.
+    :param show_interval: string indicating which metric's confidence interval to show. Options are 'average_return', 'median_return', or 'win_rate'.
+    """
+    fig = go.Figure()
+    metrics = ['average_return', 'median_return', 'win_rate']
+    colors = {'average_return': 'blue', 'median_return': 'red', 'win_rate': 'green'}
+    y_axis = {'average_return': 'y1', 'median_return': 'y1', 'win_rate': 'y2'}
+
+    for metric in metrics:
+        # Add pattern trace (point estimates)
+        fig.add_trace(
+            go.Scatter(
+                x=list(pattern_metrics[metric].keys()),
+                y=list(pattern_metrics[metric].values()),
+                name=f"Pattern {metric.replace('_', ' ').title()}",
+                mode='lines+markers',
+                yaxis=y_axis[metric],
+                hoverinfo='x+y+name',
+                line=dict(color=colors[metric])
+            )
+        )
+
+        # Add base trace (point estimates)
+        base_point_estimates = [ci[1] for ci in base_metrics[metric].values()]
+        fig.add_trace(
+            go.Scatter(
+                x=list(base_metrics[metric].keys()),
+                y=base_point_estimates,
+                name=f"Base {metric.replace('_', ' ').title()}",
+                mode='lines+markers',
+                yaxis=y_axis[metric],
+                hoverinfo='x+y+name',
+                line=dict(color=colors[metric], dash='dash')
+            )
+        )
+
+        # Add confidence intervals for the selected metric
+        if metric == show_interval:
+            for day, (ci_lower, _, ci_upper) in base_metrics[metric].items():
+                fig.add_trace(
+                    go.Scatter(
+                        x=[day, day],
+                        y=[ci_lower, ci_upper],
+                        mode='lines+markers',
+                        line=dict(color=colors[metric], dash='dot', width=1),
+                        marker=dict(size=4, symbol='line-ew-open', color=colors[metric]),
+                        showlegend=False,
+                        yaxis=y_axis[metric],
+                        hoverinfo='skip'
+                    )
+                )
+
+    # Update layout
+    fig.update_layout(
+        title="Cumulative Returns and Win Rate Over the Next Days",
+        xaxis_title="Future Lag (Days)",
+        yaxis1=dict(title="Returns (%)"),
+        yaxis2=dict(
+            title="Win Rate (%)",
+            overlaying="y",
+            side="right",
+            range=[
+                min(min(v[0] for v in base_metrics['win_rate'].values()), min(pattern_metrics['win_rate'].values())) * 0.8,
+                max(max(v[2] for v in base_metrics['win_rate'].values()), max(pattern_metrics['win_rate'].values())) * 1.1
+            ],
+            showgrid=False
+        ),
+        legend=dict(x=0.01, y=0.99, bordercolor="Black", borderwidth=1),
+        height=600,
+        width=1100,
+        xaxis=dict(showgrid=True),
+        yaxis=dict(showgrid=True),
+    )
+
+    fig.show()
+
 
 
 def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str, num_cols: int = 3):
