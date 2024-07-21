@@ -4,10 +4,12 @@
 
 This repository contains code and analysis for detecting and visualizing various candlestick patterns in stock market data. It's part of a larger project exploring the statistical significance of various candlestick patterns in technical analysis.
 
-For a detailed walkthrough of the analysis and methodology, check out our Medium article:
-[Candlestick Patterns in Trading: A Data-Driven Journey](https://medium.com/@carlo.baroni.89/candlestick-patterns-in-trading-a-data-driven-journey-c93ba8caae48)
+For a detailed walkthrough of the analysis and methodology, check out our Medium articles:
 
-This article provides in-depth explanations and insights into the work done in this project.
+1. [Candlestick Patterns in Trading: A Data-Driven Journey (Part 1)](https://medium.com/@carlo.baroni.89/candlestick-patterns-in-trading-a-data-driven-journey-c93ba8caae48)
+2. [Candlestick Patterns in Trading: A Data-Driven Journey (Part 2)](https://medium.com/@carlo.baroni.89/candlestick-patterns-in-trading-a-data-driven-journey-6eee85aa1355)
+
+These articles provide in-depth explanations and insights into the work done in this project.
 
 ## Why This Project?
 
@@ -29,6 +31,10 @@ Candlestick patterns are widely used in technical analysis, but their effectiven
 ## Future Work
 
 This repository is part of an ongoing project. Future updates will include:
-- Further Statistical analysis of pattern performance
+
+- Further statistical analysis of pattern performance
 - Comparative analysis across different stocks and different patterns
+- Development of a user-friendly tool/software capable of selecting a stock and running all these tests for different patterns simultaneously
+
+I'm committed to evolving this project into a comprehensive, easy-to-use solution for candlestick pattern analysis in stock trading.
 
