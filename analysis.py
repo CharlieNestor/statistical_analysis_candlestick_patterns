@@ -270,7 +270,6 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
         'average_return': {},
         'median_return': {},
         'std_return': {},
-        'kurtosis_return': {}
     }
     
     for day in range(1, n_days + 1):
@@ -299,17 +298,12 @@ def calculate_metrics(samples: List[Dict[int, np.ndarray]]) -> Dict[str, Dict[in
             std_return = np.std(day_returns)
             std_returns.append(std_return)
 
-            # Calculate the kurtosis of returns
-            kurtosis_return = stats.kurtosis(day_returns)
-            kurtosis_returns.append(kurtosis_return)
-
         
         # Store the results for this day
         results['win_rate'][day] = np.array(win_rates)
         results['average_return'][day] = np.array(avg_returns)
         results['median_return'][day] = np.array(median_returns)
         results['std_return'][day] = np.array(std_returns)
-        results['kurtosis_return'][day] = np.array(kurtosis_returns)
     
     return results
 
