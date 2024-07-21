@@ -313,7 +313,7 @@ def bearish_piercing_line(df: pd.DataFrame) -> pd.Series:
     )
 
     piercing_mask = (
-        bearish_piercing_line
+        bearish_piercing_line &
         # any further conditions or filters can be added here ...
         (prev_body > 0.4 * df['ATR'])
     )
