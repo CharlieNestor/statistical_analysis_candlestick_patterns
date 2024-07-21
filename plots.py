@@ -51,6 +51,7 @@ def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
     fig.show()
 
 
+
 def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, pattern_name: str) -> None:
     """
     Plot the close price of the stock with vertical lines marking the dates where patterns occur
@@ -116,6 +117,7 @@ def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, p
                     )
 
     fig.show()
+
 
 
 def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker: str, pattern_name: str, 
@@ -229,6 +231,7 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
 
 
 
+
 def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]], 
                           base_metrics: Dict[str, Dict[int, Tuple[float, float, float]]], 
                           pattern_name: str,
@@ -316,6 +319,7 @@ def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]],
 
 
 
+
 def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str, num_cols: int = 3):
     """
     Plot frequency distributions of a specific metric for each day using Plotly
@@ -371,6 +375,7 @@ def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_
                       title_text=f"{metric_name} Distributions by Day vs Normal Distribution. (Sample size: {len(values)})")
     
     fig.show()
+
 
 
 def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]], 
@@ -445,7 +450,9 @@ def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]],
     
     fig.update_layout(height=300*num_rows, width=350*num_cols,
                       title_text=f"Q-Q Plots: {metric_name} vs {'Gaussian' if comparison_data == 'gaussian' else 'Comparison Data'}")
+    
     fig.show()
+
 
 
 def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str) -> None:
@@ -466,7 +473,7 @@ def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str) -
     cmap = sns.color_palette(colors, as_cmap=True)
 
     # Create the figure with more space
-    plt.figure(figsize=(18, 8))
+    fig = plt.figure(figsize=(18, 8))
 
     # Create the heatmap
     ax = sns.heatmap(df,
@@ -498,5 +505,6 @@ def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str) -
     plt.subplots_adjust(right=0.85)
     
     plt.show()
+
 
 
