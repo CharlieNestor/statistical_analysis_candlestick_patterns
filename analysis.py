@@ -103,8 +103,8 @@ def calculate_win_rate(returns: dict[int, list[float]]) -> dict[int, float]:
     """
     Calculate the win rate for each future period as the percentage of positive returns in each period
     :param returns: a dictionary with the cumulative returns for each period.
-    :return:    a dictionary with the win rate for each period. 
-                Keys are the periods ( = 1,2,3,...), values are the win rate rounded to 2 decimal places
+    :return: a dictionary with the win rate for each period. 
+            Keys are the periods ( = 1,2,3,...), values are the win rate rounded to 2 decimal places
     """
     win_rate = {period: round(sum(1 for r in ret if r > 0) * 100 / len(ret), 2) for period, ret in returns.items() if ret}
     return win_rate
@@ -113,8 +113,8 @@ def calculate_average_return(returns: dict[int, list[float]]) -> dict[int, float
     """
     Calculate the average return for each future period
     :param returns: a dictionary with the cumulative returns for each period.
-    :return:    a dictionary with the average return for each period. 
-                Keys are the periods ( = 1,2,3,...), values are the average return rounded to 3 decimal places
+    :return: a dictionary with the average return for each period. 
+            Keys are the periods ( = 1,2,3,...), values are the average return rounded to 3 decimal places
     """
     avg_return = {period: round(sum(ret) / len(ret), 3) for period, ret in returns.items() if ret}
     return avg_return
@@ -128,6 +128,58 @@ def calculate_median_return(returns: dict[int, list[float]]) -> dict[int, float]
     """
     median_return = {period: round(np.nanmedian(ret),3) for period, ret in returns.items() if ret}
     return median_return
+
+
+def log_to_simple(log_return: Union[float, pd.Series, np.ndarray[float]]) -> float:
+    """
+    Convert log returns to simple returns and multiply by 100 to get percentage returns in readable format.
+    """
+    return (np.exp(log_return) - 1) * 100
+
+
+def calculate_win_rate_from_log(log_returns: dict[int, list[float]]) -> dict[int, float]:
+    """
+    Calculate the win rate for each future period as the percentage of positive log returns in each period.
+    :param log_returns: a dictionary with the cumulative log returns for each period.
+    :return: a dictionary with the win rate for each period.
+             Keys are the periods (1,2,3,...), values are the win rate rounded to 2 decimal places.
+    """
+    win_rate = {period: round(sum(1 for r in ret if r > 0) * 100 / len(ret), 2) 
+                for period, ret in log_returns.items() if ret}
+    return win_rate
+
+def calculate_average_return_from_log(log_returns: dict[int, list[float]]) -> dict[int, float]:
+    """
+    Calculate the average return for each future period from log returns, converted to linear scale.
+    :param log_returns: a dictionary with the cumulative log returns for each period.
+    :return: a dictionary with the average return for each period in linear scale.
+             Keys are the periods (1,2,3,...), values are the average return rounded to 3 decimal places.
+    """
+    avg_return = {period: round(log_to_simple(np.mean(ret)), 3) 
+                  for period, ret in log_returns.items() if ret}
+    return avg_return
+
+def calculate_median_return_from_log(log_returns: dict[int, list[float]]) -> dict[int, float]:
+    """
+    Calculate the median return for each future period from log returns, converted to linear scale.
+    :param log_returns: a dictionary with the cumulative log returns for each period.
+    :return: a dictionary with the median return for each period in linear scale.
+             Keys are the periods (1,2,3,...), values are the median return rounded to 3 decimal places.
+    """
+    median_return = {period: round(log_to_simple(np.median(ret)), 3) 
+                     for period, ret in log_returns.items() if ret}
+    return median_return
+
+def calculate_std_return_from_log(log_returns: dict[int, list[float]]) -> dict[int, float]:
+    """
+    Calculate the standard deviation of returns for each future period from log returns, converted to linear scale.
+    :param log_returns: a dictionary with the cumulative log returns for each period.
+    :return: a dictionary with the standard deviation of returns for each period in linear scale.
+             Keys are the periods (1,2,3,...), values are the standard deviation rounded to 3 decimal places.
+    """
+    std_return = {period: round(log_to_simple(np.std(ret)), 3) 
+                  for period, ret in log_returns.items() if ret}
+    return std_return
 
 
 def calculate_returns_pattern(series: pd.Series, pattern_mask: pd.Series, max_length: int = 100) -> list[np.ndarray]:
@@ -146,6 +198,8 @@ def calculate_returns_pattern(series: pd.Series, pattern_mask: pd.Series, max_le
     return return_series
 
 
+# GENERATE RANDOM SAMPLES functions
+
 
 def generate_multiple_mask(df: pd.DataFrame, input_mask, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
     """
@@ -160,13 +214,16 @@ def generate_multiple_mask(df: pd.DataFrame, input_mask, dim_sample: int, n_iter
     return [pt.random_mask(df = df, input_mask=input_mask, dim_sample = dim_sample) for _ in range(n_iterations)]
 
 
-def generate_random_returns(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int, n_iterations: int = 1000, verbose: bool = True) -> list[dict[int, np.ndarray[float]]]:
+def generate_random_returns(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int, n_iterations: int = 1000, 
+                            is_log: bool = True, verbose: bool = True) -> list[dict[int, np.ndarray[float]]]:
     """
     Generate random returns from random masks. Returns will be rounded to 3 decimal places.
     :param df: DataFrame to generate returns for
     :param input_mask: Mask to use as input for generating random masks
     :param n_iterations: Number of random samples to generate
     :param dim_sample: Dimension of each random sample
+    :param is_log: Whether to calculate log returns
+    :param verbose: Whether to print progress messages
     :return: List of random returns. The returns are dictionaries with keys as periods and values as numpy arrays of returns
     """
     random_masks = generate_multiple_mask(df, input_mask, dim_sample=dim_sample, n_iterations=n_iterations)
@@ -175,8 +232,12 @@ def generate_random_returns(df: pd.DataFrame, input_mask: pd.Series, dim_sample:
     if verbose:
         print('Starting generating samples...')
     for mask in random_masks:
-        returns = calculate_cumReturns_periods(df, mask, max_ahead=15)
-        returns = {k: np.array([round(100*r,3) for r in v]) for k, v in returns.items()}      # round to 3 decimal places
+        if is_log:
+            returns = calculate_log_cumReturns_periods(df, mask, max_ahead=15)
+            returns = {k: np.array([r for r in v]) for k, v in returns.items()}      # convert to numpy array
+        else:
+            returns = calculate_cumReturns_periods(df, mask, max_ahead=15)
+            returns = {k: np.array([round(100*r,3) for r in v]) for k, v in returns.items()}      # round to 3 decimal places
         original_returns.append(returns)
         counter += 1
         if verbose:
