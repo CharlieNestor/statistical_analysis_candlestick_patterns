@@ -320,14 +320,14 @@ def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]],
 
 
 
-def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str, num_cols: int = 3):
+def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_name: str ):
     """
     Plot frequency distributions of a specific metric for each day using Plotly
     
     :param metrics: Dictionary of metrics. Keys are metric names, values are dictionaries with days as keys and numpy arrays of values as values
     :param metric_name: Name of the metric to plot
-    :param num_cols: Number of columns in the subplot grid
     """
+    num_cols = 3
     if isinstance(metric_name, str):
         metric_name = metric_name.lower()
     else:
@@ -369,7 +369,7 @@ def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_
         fig.update_yaxes(title_text=None, row=row, col=col)
         
         # Center the x-axis range
-        fig.update_xaxes(range=[np.percentile(values, 2), np.percentile(values, 98)], row=row, col=col)
+        fig.update_xaxes(range=[np.percentile(values, 0), np.percentile(values, 100)], row=row, col=col)
     
     fig.update_layout(height=300*num_rows, width=350*num_cols,
                       title_text=f"{metric_name} Distributions by Day vs Normal Distribution. (Sample size: {len(values)})")
@@ -380,8 +380,7 @@ def plot_metric_distributions(metrics: dict[str, dict[int, np.ndarray]], metric_
 
 def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]], 
             metric_name: str, 
-            comparison_data: Union[Dict[str, Dict[int, np.ndarray]], str] = 'gaussian', 
-            num_cols: int = 3):
+            comparison_data: Union[Dict[str, Dict[int, np.ndarray]], str] = 'gaussian'):
     """
     Create Q-Q plots comparing a metric's distribution vs Gaussian or another distribution.
     
@@ -390,8 +389,8 @@ def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]],
     :param metric_name: Name of the metric to plot.
     :param comparison_data: Either 'gaussian' for comparison with normal distribution, 
                             or a dictionary similar to 'metrics' for comparison with another dataset.
-    :param num_cols: Number of columns in the subplot grid.
     """
+    num_cols=3
     if metric_name not in metrics:
         raise ValueError(f"Metric '{metric_name}' not found in the metrics dictionary.")
 
