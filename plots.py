@@ -1,7 +1,10 @@
 import random
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from scipy import stats
 from plotly.subplots import make_subplots
 from typing import Dict, Tuple, Union
@@ -228,6 +231,7 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
 
 def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]], 
                           base_metrics: Dict[str, Dict[int, Tuple[float, float, float]]], 
+                          pattern_name: str,
                           show_interval: str = 'average_return') -> None:
     """
     Plot the average returns, median returns, and win rate over the future periods
@@ -288,7 +292,7 @@ def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]],
 
     # Update layout
     fig.update_layout(
-        title="Cumulative Returns and Win Rate Over the Next Days",
+        title=f"Comparison Performance {pattern_name} Pattern vs Base Case Metrics",
         xaxis_title="Future Lag (Days)",
         yaxis1=dict(title="Returns (%)"),
         yaxis2=dict(
@@ -443,5 +447,56 @@ def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]],
                       title_text=f"Q-Q Plots: {metric_name} vs {'Gaussian' if comparison_data == 'gaussian' else 'Comparison Data'}")
     fig.show()
 
+
+def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str) -> None:
+    """
+    Create and display a heatmap visualizing the significance of pattern metrics compared to the base case.
+
+    This function generates a color-coded heatmap where each cell represents the significance level
+    of a particular metric for a specific day. Positive values (green) indicate the pattern outperforming
+    the base case, while negative values (red) indicate underperformance.
+
+    :param table: Dictionary with metrics as keys and numpy arrays of significance scores as values
+    """
+    df = pd.DataFrame(table).T      # Transpose the DataFrame to have metrics as rows and days as columns
+    df.columns = range(1, 16)       # Set column names to be 1-15
+
+    # Create a custom colormap with 7 distinct colors
+    colors = ['#FF6666', '#FF9999', '#FFCCCC', '#E0E0E0', '#CCFFCC', '#99FF99', '#66FF66']
+    cmap = sns.color_palette(colors, as_cmap=True)
+
+    # Create the figure with more space
+    plt.figure(figsize=(18, 8))
+
+    # Create the heatmap
+    ax = sns.heatmap(df,
+                     annot=True,    # Show the values in each cell
+                     cmap=cmap,     # Use our custom colormap
+                     center=0,      # Center the colormap at 0
+                     fmt="d",       # Use integer format for the annotations
+                     cbar=False,    # Remove the color bar
+                     linewidths=0.5,
+                     square=True,   # Make cells square-shaped
+                     vmin=-3, vmax=3    # Set the color scale limits
+                     )
+
+    plt.title(f"Significance of {pattern_name} Pattern Metrics vs Base Case", fontsize=16, color='red', pad=20)
+    plt.xlabel("Days", fontsize=12)
+    plt.ylabel("")      # Remove y-axis label
+    plt.yticks(color='blue', fontweight='bold')     # Color the y-tick labels blue
+    plt.xticks(rotation=0)      # Adjust x-axis labels
+
+    # Create a custom legend
+    red_patch = mpatches.Patch(color='#FF6666', label='Statistically Negative \nRelevance')
+    green_patch = mpatches.Patch(color='#66FF66', label='Statistically Positive \nRelevance')
+    plt.legend(handles=[red_patch, green_patch], loc='center left', bbox_to_anchor=(1, 0.5))
+
+    # Adjust layout to prevent cutoff
+    plt.tight_layout()
+    
+    # Add extra space to the right for the legend
+    plt.subplots_adjust(right=0.85)
+    
+    plt.show()
 
 
