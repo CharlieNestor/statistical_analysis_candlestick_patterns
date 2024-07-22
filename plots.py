@@ -52,7 +52,7 @@ def plot_chart(dataset: pd.DataFrame, ticker: str) -> None:
 
 
 
-def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, pattern_name: str) -> None:
+def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, pattern_name: str, streamlit: bool=False) -> None:
     """
     Plot the close price of the stock with vertical lines marking the dates where patterns occur
     :param data: the stock dataset
@@ -116,12 +116,15 @@ def plot_close_with_patterns(data: pd.DataFrame, ticker: str, mask: pd.Series, p
                     linecolor = 'black', mirror = True,
                     )
 
-    fig.show()
+    if streamlit:
+        return fig
+    else:
+        fig.show()
 
 
 
 def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker: str, pattern_name: str, 
-                max_candles=20, back_candles=5, max_subplots=12) -> None:
+                max_candles=20, back_candles=5, max_subplots=12, streamlit: bool=False) -> None:
     """
     create a subplot candlestick chart for each pattern detected up to max_subplots, randomly selected
     :param data: the stock data
@@ -227,7 +230,10 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
                                     x=0.5)
         )
 
-    fig.show()
+    if streamlit:
+        return fig
+    else:
+        fig.show()
 
 
 
@@ -235,7 +241,8 @@ def plot_patterns(data: pd.DataFrame, mask: pd.Series, num_candles: int, ticker:
 def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]], 
                           base_metrics: Dict[str, Dict[int, Tuple[float, float, float]]], 
                           pattern_name: str,
-                          show_interval: str = 'average_return') -> None:
+                          show_interval: str = 'average_return',
+                          streamlit: bool = False) -> None:
     """
     Plot the average returns, median returns, and win rate over the future periods
     for both pattern and base case, including confidence intervals for the base case.
@@ -315,7 +322,10 @@ def plot_compared_metrics(pattern_metrics: Dict[str, Dict[int, float]],
         yaxis=dict(showgrid=True),
     )
 
-    fig.show()
+    if streamlit:
+        return fig
+    else:
+        fig.show()
 
 
 
@@ -454,7 +464,7 @@ def qq_plot(metrics: Dict[str, Dict[int, np.ndarray]],
 
 
 
-def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str) -> None:
+def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str, streamlit: bool = False) -> None:
     """
     Create and display a heatmap visualizing the significance of pattern metrics compared to the base case.
 
@@ -503,7 +513,10 @@ def plot_significance_heatmap(table: Dict[str, np.ndarray], pattern_name: str) -
     # Add extra space to the right for the legend
     plt.subplots_adjust(right=0.85)
     
-    plt.show()
+    if streamlit:
+        return fig
+    else:
+        plt.show()
 
 
 
