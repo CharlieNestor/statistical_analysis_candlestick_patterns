@@ -44,6 +44,12 @@ Visualize pattern occurrences on stock charts
 Run simulations to assess pattern effectiveness
 View comparative performance metrics and significance heatmaps
 
+### Streamlit App
+Experience our interactive interface by running in the Terminal:
+```sh
+streamlit run pattern_streamlit.py
+```
+
 
 ## Future Work
 
