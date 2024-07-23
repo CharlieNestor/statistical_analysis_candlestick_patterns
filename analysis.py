@@ -2,8 +2,6 @@ import math
 import numpy as np
 import pandas as pd
 import patterns as pt
-import statsmodels.api as sm
-import statsmodels.stats.api as sms
 from scipy import stats
 from typing import List, Dict, Tuple, Union
 
