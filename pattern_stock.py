@@ -31,11 +31,16 @@ class PatternStock:
         and calculates the Average True Range (ATR) indicator.
         """
         data = load_data(self.ticker)
+        if not data or self.ticker not in data:
+            raise ValueError(f"Invalid ticker or no data found for {self.ticker}")
         cleaned_data = check_clean_data(data)
-        self.df = cleaned_data[self.ticker]['historical_data']
-        self.info = cleaned_data[self.ticker]['info']
-        self.df = an.add_pct_log_returns(self.df)
-        self.support_df = an.calculate_ATR(self.df)
+        if not cleaned_data[self.ticker]['historical_data'].empty:
+            self.df = cleaned_data[self.ticker]['historical_data']
+            self.info = cleaned_data[self.ticker]['info']
+            self.df = an.add_pct_log_returns(self.df)
+            self.support_df = an.calculate_ATR(self.df)
+        else:
+            raise ValueError(f"No historical data available for {self.ticker}")
 
 
     def apply_pattern(self, pattern_name):
