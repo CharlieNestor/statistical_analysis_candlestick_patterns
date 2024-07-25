@@ -38,14 +38,14 @@ Candlestick patterns are widely used in technical analysis, but their effectiven
 
 This project now includes a Streamlit app (`pattern_streamlit.py`) that allows users to:
 
-Select stocks from a predefined list or enter custom tickers
-Choose from various candlestick patterns
-Visualize pattern occurrences on stock charts
-Run simulations to assess pattern effectiveness
-View comparative performance metrics and significance heatmaps
+- Select stocks from a predefined list (`tickers.txt`or `tickers.csv`) or enter custom tickers
+- Choose from various candlestick patterns
+- Visualize pattern occurrences on stock charts
+- Run simulations to assess pattern effectiveness
+- View comparative performance metrics and significance heatmaps
 
 ### Streamlit App
-Experience our interactive interface by running in the Terminal:
+Experience the interactive interface by running in the Terminal:
 ```sh
 streamlit run pattern_streamlit.py
 ```
