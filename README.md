@@ -2,23 +2,55 @@
 
 ## Overview
 
-This repository contains code and analysis for detecting and visualizing various candlestick patterns in stock market data. It's part of a larger project exploring the effectiveness of candlestick patterns in technical analysis using a data-driven approach.
+This repository offers a data-driven toolkit for analyzing candlestick patterns in stock market data. It provides robust methods for detecting patterns, visualizing them across long-term data, and statistically analysing their effectiveness.
 
 For a detailed walkthrough of the analysis and methodology, check out our Medium articles:
 
 1. [Candlestick Patterns in Trading: A Data-Driven Journey (Part 1)](https://medium.com/@carlo.baroni.89/candlestick-patterns-in-trading-a-data-driven-journey-c93ba8caae48)
 2. [Candlestick Patterns in Trading: A Data-Driven Journey (Part 2)](https://medium.com/@carlo.baroni.89/candlestick-patterns-in-trading-a-data-driven-journey-6eee85aa1355)
 
-These articles provide in-depth explanations and insights into the work done in this project.
 
-## Why This Project?
+## Features
 
-Candlestick patterns are widely used in technical analysis, but their effectiveness is often debated. This project aims to:
+- Programmatic detection of various candlestick patterns
+- Interactive visualization of patterns on stock charts
+- Statistical analysis of pattern returns
+- Monte Carlo simulations for assessing pattern effectiveness
+- Comprehensive toolkit for traders and researchers
 
-1. Provide a robust method for programmatically detecting any candlestick pattern
-2. Visualize these patterns across long-term stock data
-3. Statistical analyze the results of these patterns 
-4. Offer a comprehensive toolkit for traders and researchers to evaluate candlestick patterns
+
+## Getting Started
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/candlestick-patterns-analysis.git
+   cd candlestick-patterns-analysis
+   ```
+
+2. Install the required packages:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Run the Streamlit app:
+    ```sh
+    streamlit run pattern_streamlit.py
+    ```
+
+
+## Usage
+
+The Streamlit app provides an interactive interface for analyzing candlestick patterns:
+
+1. Select a stock from the dropdown or enter a custom ticker.
+2. Choose a candlestick pattern to analyze.
+3. Use the checkboxes to display:
+   - Stock chart with pattern occurrences
+   - Examples of individual pattern instances
+4. Click "Run Simulation" to perform statistical analysis.
+5. View the results, including:
+   - Pattern vs. Base Case Performance chart
+   - Significance Heatmap
 
 
 ## File Structure
@@ -32,23 +64,6 @@ Candlestick patterns are widely used in technical analysis, but their effectiven
 - `Pattern_Medium_01.ipynb`: Jupyter notebook showcasing the code journey related to the first Medium publication
 - `Pattern_Medium_02.ipynb`: Jupyter notebook showcasing the code and analysis journey described in the second Medium publication
 - `Pattern_playground.ipynb`: Jupyter notebook for those who wants to directly play with the patterns and the functionalities
-
-
-## Interactive Analysis Tool
-
-This project now includes a Streamlit app (`pattern_streamlit.py`) that allows users to:
-
-- Select stocks from a predefined list (`tickers.txt`or `tickers.csv`) or enter custom tickers
-- Choose from various candlestick patterns
-- Visualize pattern occurrences on stock charts
-- Run simulations to assess pattern effectiveness
-- View comparative performance metrics and significance heatmaps
-
-### Streamlit App
-Experience the interactive interface by running in the Terminal:
-```sh
-streamlit run pattern_streamlit.py
-```
 
 
 ## Future Work
