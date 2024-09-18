@@ -23,12 +23,13 @@ For a detailed walkthrough of the analysis and methodology, check out our Medium
 
 1. Clone the repository:
    ```
-   git clone https://github.com/CharlieNestor/candlestick-patterns-analysis.git
-   cd candlestick-patterns-analysis
+   git clone https://github.com/CharlieNestor/statistical_analysis_candlestick_patterns.git
    ```
 
-2. Install the required packages:
+2. Install the required packages in a new virtual environment:
    ```
+   python -m venv venv
+   source venv/bin/activate
    pip install -r requirements.txt
    ```
 
