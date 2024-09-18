@@ -16,14 +16,14 @@ For a detailed walkthrough of the analysis and methodology, check out our Medium
 - Interactive visualization of patterns on stock charts
 - Statistical analysis of pattern returns
 - Monte Carlo simulations for assessing pattern effectiveness
-- Comprehensive toolkit for traders and researchers
+- Pattern effectiveness analysis
 
 
 ## Getting Started
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/candlestick-patterns-analysis.git
+   git clone https://github.com/CharlieNestor/candlestick-patterns-analysis.git
    cd candlestick-patterns-analysis
    ```
 
@@ -40,7 +40,7 @@ For a detailed walkthrough of the analysis and methodology, check out our Medium
 
 ## Usage
 
-The Streamlit app provides an interactive interface for analyzing candlestick patterns:
+The Streamlit app provides an interactive interface for analysing candlestick patterns. It is recommended to set the background color to white for better visibility.
 
 1. Select a stock from the dropdown or enter a custom ticker.
 2. Choose a candlestick pattern to analyze.
