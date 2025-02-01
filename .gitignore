@@ -1,17 +1,15 @@
+# cache files
 __pycache__/
+.DS_Store
 
+# name of the local environment
 .env_pattern/
 
+# environment variables
 .env
 
-playground2.ipynb
-playground3.ipynb
-playground4.ipynb
+# Work in progress folder
+wip/
 
-plots_aux.py
-analysis_aux.py
-
+# List of tickers
 tickers.txt
-
-CoverFig_BullishEng.png
-CoverFig_PerformanceComparison.png

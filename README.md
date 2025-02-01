@@ -60,7 +60,7 @@ The Streamlit app provides an interactive interface for analysing candlestick pa
 - `loader.py`: Utilities for loading and preprocessing stock data
 - `plots.py`: Functions for creating interactive visualizations
 - `analysis.py`: Functions for statistical analysis of pattern returns
-- `pattern_stock.py`: Defines the PatternStock class which will be used int the Streamlit app
+- `pattern_stock.py`: Defines the PatternStock class which will be used in the Streamlit app
 - `pattern_streamlit.py`: Streamlit app for interactive pattern analysis
 - `Pattern_Medium_01.ipynb`: Jupyter notebook showcasing the code journey related to the first Medium publication
 - `Pattern_Medium_02.ipynb`: Jupyter notebook showcasing the code and analysis journey described in the second Medium publication
