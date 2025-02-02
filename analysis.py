@@ -6,13 +6,35 @@ from scipy import stats
 from typing import List, Dict, Tuple, Union
 
 
+# DERIVED VARIABLES functions
 
 def add_pct_log_returns(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate the percentage and log returns of the stock price
+    :param df: dataframe with historical data
+    :return: dataframe with percentage and log returns
     """
     df['Returns'] = df['Close'].pct_change()
     df['Log_Returns'] = np.log(1 + df['Returns'])
+    return df
+
+def add_avg_price(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add the average price of the stock to the dataframe
+    :param df: dataframe with historical data
+    :return: dataframe with average price
+    """
+    df['Avg_Price'] = (df['Open'] + df['High'] + df['Low'] + df['Close']) / 4
+    return df
+
+def add_body_range(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add the body range of the stock to the dataframe
+    :param df: dataframe with historical data
+    :return: dataframe with body range
+    """
+    df['Body'] = abs(df['Open'] - df['Close'])
+    df['Range'] = abs(df['High'] - df['Low'])
     return df
 
 
