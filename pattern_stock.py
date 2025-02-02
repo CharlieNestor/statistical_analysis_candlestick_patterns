@@ -12,7 +12,7 @@ class PatternStock:
     calculating metrics, and running simulations for statistical analysis.
     """
 
-    def __init__(self, ticker):
+    def __init__(self, ticker: str):
         """
         Initialize the PatternStock object.
         :param ticker: The stock ticker symbol
@@ -27,8 +27,9 @@ class PatternStock:
     def load_data(self):
         """
         Load and preprocess the stock data.
-        This method fetches the stock data, cleans it, adds percentage and log returns,
-        and calculates the Average True Range (ATR) indicator.
+        This method fetches the stock data with 'load_data'. 
+        It then checks its consistency and cleans it with 'check_clean_data'.
+        After that, it adds the percentage and log returns to the dataframe and calculates the ATR indicator.
         """
         data = load_data(self.ticker)
         if not data or self.ticker not in data:
@@ -43,7 +44,7 @@ class PatternStock:
             raise ValueError(f"No historical data available for {self.ticker}")
 
 
-    def apply_pattern(self, pattern_name):
+    def apply_pattern(self, pattern_name: str):
         """
         Apply a specific candlestick pattern to the stock data.
         This method identifies the occurrences of the specified pattern in the stock's price history.
@@ -66,7 +67,7 @@ class PatternStock:
         self.calculate_metrics(pattern_name)
 
 
-    def calculate_metrics(self, pattern_name):
+    def calculate_metrics(self, pattern_name: str):
         """
         Calculate performance metrics for the specified pattern.
         This method computes win rate, average return, median return, and standard deviation
@@ -85,7 +86,7 @@ class PatternStock:
             }
 
     
-    def run_simulation(self, pattern_name, n_iterations=1000):
+    def run_simulation(self, pattern_name: str, n_iterations: int = 1000):
         """
         Run n_interations simulations to assess the statistical significance of the pattern.
         This method generates random samples, calculates confidence intervals and p-values,
@@ -124,7 +125,8 @@ class PatternStock:
                 'significance_table': significance_table
             }
 
-    def get_data_for_plotting(self, pattern_name):
+
+    def get_data_for_plotting(self, pattern_name: str):
         """
         Retrieve all necessary data for plotting the pattern analysis results.
         This method collects the relevant data for creating visualizations of the pattern analysis,

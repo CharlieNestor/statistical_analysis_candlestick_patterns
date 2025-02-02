@@ -6,9 +6,10 @@ from typing import Union
 def load_data(tickers: Union[str, list[str]], start_date = '1995-01-01') -> dict[str, dict[str, any]]:
     """
     Load stock data from Yahoo Finance starting from 1995-01-01.
-    :param tickers: set of tickers to load
+    :param tickers: list of tickers to load
     :param start_date: start date for historical data
-    :return: dictionary with stock data. keys are tickers and values are dictionaries with keys 'info', 'historical_data', 'splits'
+    :return: dictionary with stock data. 
+        keys are tickers and values are dictionaries with keys 'info', 'historical_data', 'splits'
     """
     stock_data = {}
     # if tickers is a string, convert it to a list
@@ -20,24 +21,24 @@ def load_data(tickers: Union[str, list[str]], start_date = '1995-01-01') -> dict
         try:
             stock_info = stock.info
         except Exception as e:
-            print(f"Could not get info for {ticker}")
-            print(e)
+            print(f"Could not get info for {ticker}.")
+            print(f'Error: {e}')
             stock_info = None
             continue    # skip to the next ticker
         # get historical data
         try:
             historical_data = stock.history(start=start_date)     # keepna=True will keep the rows with missing values
         except Exception as e:
-            print(f"Could not get historical data for {ticker}")
-            print(e)
+            print(f"Could not get historical data for {ticker}.")
+            print(f'Error: {e}')
             historical_data = None
             continue
         # get stock splits
         try:
             splits = stock.splits
         except Exception as e:
-            print(f"Could not get splits for {ticker}")
-            print(e)
+            print(f"Could not get splits for {ticker}.")
+            print(f'Error: {e}')
             splits = None
             continue
         # store the data in the dictionary
@@ -52,7 +53,9 @@ def load_data(tickers: Union[str, list[str]], start_date = '1995-01-01') -> dict
 
 def round_values(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Round the values in the dataframe
+    Round the values in the dataframe to a significative number of decimal places.
+    :param df: dataframe with historical data
+    :return: dataframe with rounded values
     """
     columns_to_round = ['Open', 'High', 'Low', 'Close']
     # round the values in the dataframe depending on the stock prices
@@ -64,13 +67,16 @@ def round_values(df: pd.DataFrame) -> pd.DataFrame:
 
 def remove_typos_and_missing_data(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
     """
-    Remove rows with missing or incorrect data. Missing values, negative prices, and incorrect Open, High, Low, Close values are removed.
+    Remove rows with missing or incorrect data. 
+    Missing values, negative prices, and incorrect Open, High, Low, Close values are removed.
     :param df: dataframe with historical data
+    :param ticker: ticker of the stock
+    :return: dataframe with cleaned data
     """
     initial_rows = len(df)
     # remove rows with missing values
     #df = df.dropna(how='all')       # to drop if all value in the row are NaN
-    df = df.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any')
+    df = df.dropna(subset=['Open', 'High', 'Low', 'Close'], how='any')  # to drop if any value in the row is NaN
 
     # remove rows with negative prices (valid for stocks)
     df = df[(df['Open'] > 0) & (df['High'] > 0) & (df['Low'] > 0) & (df['Close'] > 0)]
@@ -104,7 +110,7 @@ def check_prices_volumes_excursion(df: pd.DataFrame) -> Union[list[str], float]:
     # Calculate the average price
     avgPrice = df[['Open', 'High', 'Low', 'Close']].mean(axis=1)
     
-    # Calculate the excursion of the average price
+    # Calculate the excursion of the average price for the whole history of the stock
     max_avg_price = avgPrice.max()
     min_avg_price = avgPrice.min()
     excursion = (max_avg_price - min_avg_price) / min_avg_price * 100
@@ -118,7 +124,9 @@ def identify_anomalies(df: pd.DataFrame, threshold1: float = 0.35, threshold2: f
     :param df: dataframe with historical data
     :param threshold1: threshold for the percentage difference between open and close prices
     :param threshold2: threshold for the percentage difference between high and low prices
-    :return: dictionary with anomalies. Keys are 'Open-pClose Anomalies', 'High-Low Anomalies', 'Close-Open Anomalies'
+    :return: dictionary with anomalies. 
+        Keys are 'Open-pClose Anomalies', 'High-Low Anomalies', 'Close-Open Anomalies'
+        Values are lists of tuples with the date and the prices
     """
     anomalies = {
         'Open-pClose Anomalies': [],
@@ -133,15 +141,15 @@ def identify_anomalies(df: pd.DataFrame, threshold1: float = 0.35, threshold2: f
         current_low = df.iloc[i]['Low']
         current_close = df.iloc[i]['Close']
 
-        # check if the open is more than 35% higher or lower than the previous close
+        # check if the open is more than 35% higher or lower than the PREVIOUS close
         if abs(current_open - previous_close) / previous_close > threshold1:
             anomalies['Open-pClose Anomalies'].append((df.index[i], current_open, previous_close))
 
-        # check if the high-low excursion is more than 50%
+        # check if the daily high-low excursion is more than 50%
         if (current_high - current_low) / current_low > threshold2:
             anomalies['High-Low Anomalies'].append((df.index[i], current_high, current_low))
 
-        # check if the close is more than 35% higher or lower than the open
+        # check if the close is more than 35% higher or lower than the CURRENT open
         if abs(current_close - current_open) / current_open > threshold1:
             anomalies['Close-Open Anomalies'].append((df.index[i], current_close, current_open))
 
@@ -150,9 +158,12 @@ def identify_anomalies(df: pd.DataFrame, threshold1: float = 0.35, threshold2: f
 
 def check_clean_data(stock_data: dict[str, dict[str, any]], verbose: bool = False) -> dict[str, dict[str, any]]:
     """
-    Check and clean the stock data and print warn for potential issues in the dataset.
+    Function that applies a series of checks and adjustments to the dataset.
+    These checks and adjustments are defined in the functions above.
     :param stock_data: dictionary with stock data
-    :return: dictionary with cleaned stock data. keys are tickers and values are dictionaries with keys 'info', 'historical_data', 'splits'
+    :param verbose: if True, print the results
+    :return: dictionary with cleaned stock data. 
+        keys are tickers and values are dictionaries with keys 'info', 'historical_data', 'splits'
     """
 
     for ticker, data in stock_data.items():
@@ -182,8 +193,8 @@ def check_clean_data(stock_data: dict[str, dict[str, any]], verbose: bool = Fals
                 print(f"Ticker: {ticker} has low volume on {len(low_volume_dates)} dates")
                 if verbose:
                     print(low_volume_dates)
-            if avg_excursion < 75:
-                print(f"Ticker: {ticker} has an average price excursion of less than 75%: {avg_excursion:.2f}%")
+            if avg_excursion < 100:
+                print(f"Ticker: {ticker} has an average price excursion of less than 100%: {avg_excursion:.2f}%")
             if num_anomalies:
                 print(f"Ticker: {ticker} has {num_anomalies} anomalies:")
                 for key, value in anomalies.items():
