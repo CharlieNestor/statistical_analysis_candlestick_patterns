@@ -435,6 +435,116 @@ def bearish_marubozu(df: pd.DataFrame) -> pd.Series:
     return marubozu_mask
 
 
+def bullish_3std_cross(df: pd.DataFrame) -> pd.Series:
+    """
+    Bullish 3 Standard Deviation Cross pattern: alerts when price crosses BELOW
+    the lower 3 standard deviation band after being above it.
+    
+    This is considered bullish because an extreme move downward often precedes
+    a reversal to the upside.
+    """
+    # Calculate the 20-period moving average and standard deviation
+    ma20 = df['Close'].rolling(20).mean()
+    std20 = df['Close'].rolling(20).std()
+    
+    # Calculate the lower 3 standard deviation band
+    lower_3std = ma20 - 3 * std20
+    
+    # Previous candle was ABOVE the lower 3 std band, current candle is BELOW it
+    prev_above_band = df['Close'].shift(1) > lower_3std.shift(1)
+    current_below_band = df['Close'] < lower_3std
+    
+    # Pattern conditions - price crosses back above the lower band (bullish return from oversold)
+    bullish_cross = prev_above_band & current_below_band
+
+    return bullish_cross
+
+def bearish_3std_cross(df: pd.DataFrame) -> pd.Series:
+    """
+    Bearish 3 Standard Deviation Cross pattern: alerts when price crosses ABOVE
+    the upper 3 standard deviation band after being below it.
+    
+    This is considered bearish because an extreme move upward often precedes
+    a reversal to the downside.
+    """
+    # Calculate the 20-period moving average and standard deviation
+    ma20 = df['Close'].rolling(20).mean()
+    std20 = df['Close'].rolling(20).std()
+    
+    # Calculate the upper 3 standard deviation band
+    upper_3std = ma20 + 3 * std20
+    
+    # Previous candle was BELOW the upper 3 std band, current candle is ABOVE it
+    prev_below_band = df['Close'].shift(1) < upper_3std.shift(1)
+    current_above_band = df['Close'] > upper_3std
+    
+    # Pattern conditions - price crosses back below the upper band (bearish return from overbought)
+    bearish_cross = prev_below_band & current_above_band
+
+    return bearish_cross
+
+
+def bullish_2std_rsi_cross(df: pd.DataFrame) -> pd.Series:
+    """
+    Bullish 2 Standard Deviation Cross with RSI filter: alerts when price crosses BELOW
+    the lower 2 standard deviation band AND RSI is below 30.
+    
+    This combines oversold price action with oversold RSI for a stronger bullish signal.
+    
+    :param df: DataFrame containing both OHLC data and RSI column
+    :return: Boolean Series indicating pattern occurrences
+    """
+    # Calculate the 20-period moving average and standard deviation
+    ma20 = df['Close'].rolling(20).mean()
+    std20 = df['Close'].rolling(20).std()
+    
+    # Calculate the lower 2 standard deviation band
+    lower_2std = ma20 - 2 * std20
+    
+    # Previous candle was ABOVE the lower 2 std band, current candle is BELOW it
+    prev_above_band = df['Close'].shift(1) > lower_2std.shift(1)
+    current_below_band = df['Close'] < lower_2std
+    
+    # RSI condition: current RSI must be below 30 (oversold)
+    rsi_oversold = df['RSI'] < 30
+    
+    # Combine all conditions
+    bullish_cross = prev_above_band & current_below_band & rsi_oversold
+
+    return bullish_cross
+
+def bearish_2std_rsi_cross(df: pd.DataFrame) -> pd.Series:
+    """
+    Bearish 2 Standard Deviation Cross with RSI filter: alerts when price crosses ABOVE
+    the upper 2 standard deviation band AND RSI is above 70.
+    
+    This combines overbought price action with overbought RSI for a stronger bearish signal.
+    
+    :param df: DataFrame containing both OHLC data and RSI column
+    :return: Boolean Series indicating pattern occurrences
+    """
+    
+    # Calculate the 20-period moving average and standard deviation
+    ma20 = df['Close'].rolling(20).mean()
+    std20 = df['Close'].rolling(20).std()
+    
+    # Calculate the upper 2 standard deviation band
+    upper_2std = ma20 + 2 * std20
+    
+    # Previous candle was BELOW the upper 2 std band, current candle is ABOVE it
+    prev_below_band = df['Close'].shift(1) < upper_2std.shift(1)
+    current_above_band = df['Close'] > upper_2std
+    
+    # RSI condition: current RSI must be above 70 (overbought)
+    rsi_overbought = df['RSI'] > 70
+    
+    # Combine all conditions
+    bearish_cross = prev_below_band & current_above_band & rsi_overbought
+
+    return bearish_cross
+
+
+
 # ARTIFICIAL MASKS
 
 def random_mask(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int = 100, lag: int = 10) -> pd.Series:
@@ -529,4 +639,8 @@ patterns = {
     'Bearish Harami': {'function': bearish_harami, 'candles': 2, 'direction': -1},
     'Bullish Marubozu': {'function': bullish_marubozu, 'candles': 1, 'direction': 1},
     'Bearish Marubozu': {'function': bearish_marubozu, 'candles': 1, 'direction': -1},
+    'Bullish 3 Std Cross': {'function': bullish_3std_cross, 'candles': 2, 'direction': 1},
+    'Bearish 3 Std Cross': {'function': bearish_3std_cross, 'candles': 2, 'direction': -1},
+    'Bullish 2 Std RSI Cross': {'function': bullish_2std_rsi_cross, 'candles': 2, 'direction': 1},
+    'Bearish 2 Std RSI Cross': {'function': bearish_2std_rsi_cross, 'candles': 2, 'direction': -1},
 }

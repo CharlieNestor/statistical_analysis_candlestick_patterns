@@ -75,6 +75,37 @@ def calculate_ATR(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     return new_df
 
 
+def calculate_RSI(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
+    """
+    Calculate the Relative Strength Index (RSI) using pandas ewm for efficiency.
+    :param df: DataFrame with OHLC data (must contain 'Close' column)
+    :param period: Period for calculating RSI (default is 14)
+    :return: New DataFrame with RSI column
+    """
+    if 'Close' not in df.columns:
+        raise ValueError("DataFrame must contain 'Close' column.")
+    
+    new_df = pd.DataFrame(index=df.index)
+    
+    # Calculate price changes
+    delta = df['Close'].diff()
+    
+    # Separate gains and losses
+    gains = delta.where(delta > 0, 0)
+    losses = -delta.where(delta < 0, 0)
+    
+    # Use exponential weighted moving average (Wilder's smoothing)
+    # alpha = 1/period for Wilder's method
+    avg_gain = gains.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    avg_loss = losses.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    
+    # Calculate RS and RSI
+    rs = avg_gain / avg_loss
+    new_df['RSI'] = 100 - (100 / (1 + rs))
+    
+    return new_df
+
+
 
 # ANALYSIS functions relative to each periods (1 to 10 days) and metrics
 
@@ -142,8 +173,8 @@ def calculate_median_return(returns: dict[int, list[float]]) -> dict[int, float]
     """
     Calculate the median return for each future period
     :param returns: a dictionary with the cumulative returns for each period.
-    :return:    a dictionary with the median return for each period. 
-                Keys are the periods ( = 1,2,3,...), values are the median return rounded to 3 decimal places
+    :return: a dictionary with the median return for each period. 
+            Keys are the periods ( = 1,2,3,...), values are the median return rounded to 3 decimal places
     """
     median_return = {period: round(np.nanmedian(ret),3) for period, ret in returns.items() if ret}
     return median_return
@@ -220,7 +251,7 @@ def calculate_returns_pattern(series: pd.Series, pattern_mask: pd.Series, max_le
 # GENERATE RANDOM SAMPLES functions
 
 
-def generate_multiple_mask(df: pd.DataFrame, input_mask, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
+def generate_multiple_mask(df: pd.DataFrame, input_mask: pd.Series, dim_sample: int, n_iterations: int = 1000, lag: int = 10):
     """
     Generate multiple random masks for a DataFrame.
     :param df: DataFrame to generate masks for

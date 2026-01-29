@@ -39,7 +39,11 @@ class PatternStock:
             self.df = cleaned_data[self.ticker]['historical_data']
             self.info = cleaned_data[self.ticker]['info']
             self.df = an.add_pct_log_returns(self.df)
-            self.support_df = an.calculate_ATR(self.df)
+
+            # Calculate technical indicators - all stored in support_df
+            atr_df = an.calculate_ATR(self.df)
+            rsi_df = an.calculate_RSI(self.df)
+            self.support_df = pd.concat([atr_df, rsi_df], axis=1)
         else:
             raise ValueError(f"No historical data available for {self.ticker}")
 
